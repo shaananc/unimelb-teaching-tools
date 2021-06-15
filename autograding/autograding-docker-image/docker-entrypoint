@@ -1,0 +1,9 @@
+#!/bin/sh
+set -e
+
+cd /src
+cp -r /dist/* /src/
+
+exec "$@"
+
+# vim: filetype=sh
