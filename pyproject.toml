@@ -1,0 +1,40 @@
+[tool.poetry]
+name = "unimelb-scripts"
+version = "0.1.0"
+description = ""
+authors = ["Shaanan Cohney <shaananc@gmail.com>"]
+
+[tool.poetry.dependencies]
+python = "^3.9"
+requests = "^2.25.1"
+ipdb = "^0.13.7"
+cachier = "^1.5.0"
+html2text = "^2020.1.16"
+Pygments = "^2.8.1"
+compare50 = "^1.2.3"
+pycparser = "^2.20"
+pycparser-fake-libc = "^2.20"
+rich = "^10.1.0"
+pandas = "^1.2.4"
+jupyter = "^1.0.0"
+seaborn = "^0.11.1"
+qgrid = "^1.3.1"
+bokeh = "^2.3.1"
+fuzzymatcher = "^0.0.5"
+tqdm = "^4.60.0"
+check50 = "^3.2.2"
+pytz = "^2021.1"
+render50 = "^5.0.0"
+selenium = "^3.141.0"
+requests-futures = "^1.0.0"
+
+[tool.poetry.dev-dependencies]
+bandit = "^1.7.0"
+black = {version = "^20.8b1", allow-prereleases = true}
+ipdb = "^0.13.7"
+vulture = "^2.3"
+prospector = "^1.3.1"
+
+[build-system]
+requires = ["poetry-core>=1.0.0"]
+build-backend = "poetry.core.masonry.api"
