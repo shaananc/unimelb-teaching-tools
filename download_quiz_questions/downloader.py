@@ -21,6 +21,7 @@ from utils import (  # pylint:disable=wrong-import-position
     get_quiz_info,
     get_quiz_submission_history,
     get_truthy_config_option,
+    logger,
 )
 
 
@@ -37,7 +38,7 @@ def process_submission(submission):
         get_user_info(submission["user_id"])["login_id"].encode("utf-8").decode("ascii")
     )
 
-    print("Adding User {}".format(user))
+    logger.info("Adding User {}".format(user))
 
     submission_history = sorted(
         submission["submission_history"], key=lambda x: x["attempt"]
@@ -62,9 +63,9 @@ def process_submission(submission):
 
 
 def main():
-    console.print("Downloading User Data...")
+    logger.info("Downloading User Data...")
     get_users()
-    console.print("Fetching Quiz Answers...")
+    logger.info("Fetching Quiz Answers...")
     quiz = get_quiz_info()
     quiz_assignment_id = quiz["assignment_id"]
     for submission in get_quiz_submission_history(quiz_assignment_id):
@@ -73,7 +74,7 @@ def main():
         except KeyboardInterrupt:
             continue
         except Exception as e:
-            console.print(e)
+            logger.error(e)
             continue
 
 
