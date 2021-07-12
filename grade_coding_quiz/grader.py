@@ -19,7 +19,9 @@ from rich.highlighter import ReprHighlighter
 import sys
 import os
 
-sys.path.insert(0, os.path.abspath(".."))
+from pathlib import Path
+
+sys.path.insert(0, str(Path(os.path.realpath(__file__)).parent.parent))
 from utils import (  # pylint:disable=wrong-import-position
     get_quiz_submission_history,
     get_quiz_info,

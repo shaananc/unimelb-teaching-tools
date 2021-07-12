@@ -24,7 +24,9 @@ from tqdm.contrib.logging import logging_redirect_tqdm
 from rich.logging import RichHandler
 import sys
 
-sys.path.insert(0, os.path.abspath(".."))
+from pathlib import Path
+
+sys.path.insert(0, str(Path(os.path.realpath(__file__)).parent.parent))
 from utils import get_truthy_config_option  # pylint:disable=wrong-import-position
 
 MODULE_CONFIG_SECTION = "GROK"
