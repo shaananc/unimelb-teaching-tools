@@ -13,6 +13,8 @@ The scripts also occasionally make use of undocumented APIs that were reverse en
 
 Scripts are largely written in Python 3.9 but may work with earlier versions.
 
+Most scripts require config.ini which can be placed either in your current working directory, or in the script directory. A sample is provided with the various options for scripts included. Hopefully you'll get a clear error message if you run a script and a required option is not set.
+
 
 | Folder      | Description |
 | ----------- | ----------- |
