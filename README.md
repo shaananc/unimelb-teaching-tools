@@ -17,13 +17,12 @@ Scripts are largely written in Python 3.9 but may work with earlier versions.
 | Folder      | Description |
 | ----------- | ----------- |
 | add_global_fudge_points      | Adds fudge points to a Canvas student quiz       |
-| analyze_student_progress   | iPython notebook for analyzing how students are progressing in a multi-test Grok exercise        |
 | autograding      | Docker image, shell script, and python scripts, that enable automatic grading of C code (or other languages)       |
 | change_question_score      | Demo of how to adjust the score students receive for a particular Canvas quiz question, for example to fix an error       |
 | code_to_pdf      | Light wrapper around render50 to produce PDFs from student code       |
 | download_quiz_questions      | Downloads student quiz questions locally for further analysis/autograding       |
 | get_scores_grok      | Use an undocumented Grok API to fetch the full details of which tests a student has passed (beyond what the web interface allows for export)       |
-| grade_coding_quiz      | Fancy terminal interface for grading Canvas quizzes, easy adaptable, faster than Speedgrader       |
+| grade_coding_quiz      | Fancy terminal interface for grading Canvas quizzes, easy adaptable, faster than Speedgrader for my uses       |
 | questions_to_csv      | Retrieves question-by-question points breakdown from Canvas quiz and stores it in a CSV       |
 
 
