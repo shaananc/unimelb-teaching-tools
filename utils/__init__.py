@@ -141,13 +141,14 @@ def get_truthy_config_option(option: str, section: str = CONFIG_GLOBAL_KEY) -> s
 
 
 def submit_quiz_payload(submission_id, payload) -> None:
+    logger.info(payload)
     r = requests.put(
         f"{quiz_submissions_url}/{submission_id}",
         headers=headers,
         json=payload,
     )
     if r.ok:
-        print("Successfully submitted")
+        logger.info("Successfully submitted grade")
     else:
         r.raise_for_status()
 

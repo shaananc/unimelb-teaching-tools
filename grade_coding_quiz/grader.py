@@ -29,6 +29,7 @@ from utils import (  # pylint:disable=wrong-import-position
     get_users,
     submit_quiz_payload,
     get_truthy_config_option,
+    logger,
 )
 
 import subprocess
@@ -239,6 +240,7 @@ def grade_submission(submission):
     console.clear()
     user = get_user_info(submission["user_id"])["name"].encode("utf-8").decode("ascii")
 
+    logger.info(f"Grading User {user}")
     console.print(
         Panel(f"[bold cyan]Grading User {user}[/bold cyan]", expand=False),
         justify="center",
@@ -287,9 +289,9 @@ def grade_submission(submission):
 
 
 def main():
-    console.print("Downloading User Data...")
+    logger.info("Downloading User Data...")
     get_users()
-    console.print("Fetching Quiz Answers...")
+    logger.info("Fetching Quiz Answers...")
     quiz = get_quiz_info()
     quiz_assignment_id = quiz["assignment_id"]
     for submission in get_quiz_submission_history(quiz_assignment_id):
