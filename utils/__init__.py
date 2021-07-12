@@ -6,18 +6,49 @@ from datetime import timedelta
 import configparser
 from pathlib import Path
 import os
+import logging
+from typing import Any, Dict, Iterator, Optional, Union
+from rich.logging import RichHandler
+import rich.traceback
+from requests.models import Response
 
+logger = logging.getLogger(__name__)
+FORMAT = "%(message)s"
+rich_handler = RichHandler(markup=True)
+file_handler = logging.FileHandler(filename="unimelblib.log")
+file_handler.formatter = logging.Formatter(
+    "%(asctime)s %(name)-12s %(levelname)-8s", datefmt="%d-%b-%y %H:%M:%S"
+)
+
+logging.basicConfig(
+    level="INFO",
+    format=FORMAT,
+    datefmt="[%X]",
+    handlers=[rich_handler, file_handler],
+)
+
+
+rich.traceback.install()
+
+logger.info("Reading Configuration File")
 config = configparser.ConfigParser()
 CONFIG_FILENAME = "config.ini"
 CONFIG_GLOBAL_KEY = "GLOBAL"
-if Path(CONFIG_FILENAME).exists():
-    config.read(CONFIG_FILENAME)
-elif Path(os.path.realpath(__file__)).exists():
-    config.read(Path(os.path.realpath(__file__)) / CONFIG_FILENAME)
+LOCAL_CONFIG_PATH = Path(Path(os.path.realpath(__file__)).parent / CONFIG_FILENAME)
+result = []
+
+if LOCAL_CONFIG_PATH.exists():
+    result = config.read(LOCAL_CONFIG_PATH)
+elif Path(CONFIG_FILENAME).exists():
+    result = config.read(CONFIG_FILENAME)
 else:
     raise FileNotFoundError(
         "Could not find the configuration file 'config.ini' in either the current working directory or the script directory"
     )
+
+assert result
+logger.info("Configuration File Successfully Read.")
+
 
 # Global variables for API use
 global_section = config[CONFIG_GLOBAL_KEY]
@@ -30,10 +61,10 @@ quiz_submissions_url = f"{quiz_url}/submissions"
 cache_expiry = int(global_section.get("cache_expiry", fallback="0"))
 
 
-def canvas_handled_get_request(url, payload):
+def canvas_handled_get_request(url, payload) -> Response:
     r = requests.get(url, headers=headers, params=payload)
     if r.status_code == 401:
-        print(
+        logger.error(
             requests.exceptions.HTTPError(
                 "Received HTTP 401: Unauthorized Access. Likely your token was invalid."
             )
@@ -55,17 +86,25 @@ def get_users():
         vals = json.loads(r.text)
         users |= {u["id"]: u for u in vals}
         if r.links.get("next"):
-            url = r.links.get("next")["url"]
+            url = r.links.get("next")
+            if url:
+                url = url["url"]
+            else:
+                break
         else:
             break
     return users
 
 
-def get_user_info(user_id: int):
-    return get_users()[user_id]
+def get_user_info(user_id: int) -> Dict[str, Optional[Union[int, str]]]:
+    try:
+        return get_users()[user_id]
+    except KeyError:
+        get_users.clear_cache()
+        return get_users()[user_id]
 
 
-def get_quiz_info():
+def get_quiz_info() -> Dict[str, Any]:
     payload = {
         "include[]": [],
     }
@@ -73,7 +112,7 @@ def get_quiz_info():
     return json.loads(r.text)
 
 
-def get_quiz_submission_history(quiz_assignment_id: int):
+def get_quiz_submission_history(quiz_assignment_id: int) -> Iterator[Dict[str, Any]]:
     url = f"{class_url}/assignments/{quiz_assignment_id}/submissions"
     payload = {
         "include[]": ["submission_history"],
@@ -85,19 +124,23 @@ def get_quiz_submission_history(quiz_assignment_id: int):
         for submission in submissions:
             yield submission
         if r.links.get("next"):
-            url = r.links.get("next")["url"]
+            url = r.links.get("next")
+            if url:
+                url = url["url"]
+            else:
+                break
         else:
             break
 
 
-def get_truthy_config_option(option, section=CONFIG_GLOBAL_KEY):
+def get_truthy_config_option(option: str, section: str = CONFIG_GLOBAL_KEY) -> str:
     r = config.get(section, option=option)
     if not r:
         raise ValueError(f"Needed configuration value '{option}' not set")
     return r
 
 
-def submit_quiz_payload(submission_id, payload):
+def submit_quiz_payload(submission_id, payload) -> None:
     r = requests.put(
         f"{quiz_submissions_url}/{submission_id}",
         headers=headers,
