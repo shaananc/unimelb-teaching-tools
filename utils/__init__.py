@@ -17,7 +17,7 @@ FORMAT = "%(message)s"
 rich_handler = RichHandler(markup=True)
 file_handler = logging.FileHandler(filename="unimelblib.log")
 file_handler.formatter = logging.Formatter(
-    "%(asctime)s %(name)-12s %(levelname)-8s", datefmt="%d-%b-%y %H:%M:%S"
+    "%(asctime)s %(name)-12s %(levelname)-8s %(message)s", datefmt="%d-%b-%y %H:%M:%S"
 )
 
 logging.basicConfig(
