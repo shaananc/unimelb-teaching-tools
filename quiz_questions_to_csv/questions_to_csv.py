@@ -15,6 +15,7 @@ from utils import (  # pylint:disable=wrong-import-position
     get_user_info,
     get_quiz_info,
     get_quiz_submission_history,
+    logger,
 )
 
 console = Console()
@@ -24,10 +25,7 @@ def process_submission(submission):
     """Grades an individual user's submission"""
     user = get_user_info(submission["user_id"])
 
-    console.print(
-        (f"[bold cyan]Updating {user}[/bold cyan]"),
-        justify="center",
-    )
+    logger.info((f"[bold cyan]Fetching {user['short_name']}[/bold cyan]"))
 
     submission_history = sorted(
         submission["submission_history"], key=lambda x: x["attempt"]
@@ -40,7 +38,7 @@ def process_submission(submission):
     points = [p["points"] for p in most_recent_answers]
     points_dict = dict(zip(([f"q{i}" for i in range(0, len(points))]), points))
     points_dict["name"] = user["name"].encode("utf-8").decode("ascii")
-    points_dict["sid"] = int(user["sis_user_id"])
+    points_dict["sid"] = user["sis_user_id"]
     points_dict["login"] = user["login_id"]
     points_dict["email"] = user["email"]
     points_dict["total"] = sum(points)
@@ -49,7 +47,7 @@ def process_submission(submission):
 
 
 def main():
-    console.print("Fetching Quiz Answers...")
+    logger.info("Fetching Quiz Answers...")
     quiz = get_quiz_info()
     quiz_assignment_id = quiz["assignment_id"]
     all_dict = []
@@ -61,6 +59,7 @@ def main():
         except Exception as e:
             print(e)
 
+    logger.info("Writing to CSV")
     df = pd.DataFrame.from_records(all_dict, index="sid")
     df.to_csv("points.csv", index=True)
 
