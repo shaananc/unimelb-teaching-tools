@@ -6,11 +6,11 @@ Note students who received a zero originally do not receive a grade bump, which 
 This script is supplemented by config.ini, for which a sample is provided in which the user can configure the number of fudge points to add or subtract.
 """
 from rich.console import Console
-from rich.panel import Panel
 import sys
 import os
+from pathlib import Path
 
-sys.path.insert(0, os.path.abspath(".."))
+sys.path.insert(0, str(Path(os.path.realpath(__file__)).parent.parent))
 
 from utils import (  # pylint:disable=wrong-import-position
     get_user_info,
@@ -19,6 +19,7 @@ from utils import (  # pylint:disable=wrong-import-position
     get_truthy_config_option,
     get_quiz_submission_history,
     submit_quiz_payload,
+    logger,
 )
 
 MODULE_CONFIG_SECTION = "FUDGEPOINTS"
@@ -34,12 +35,11 @@ console = Console()
 
 def interactive_grader(submission):
     """Grades an individual user's submission"""
-    user = get_user_info(submission["user_id"])["name"].encode("utf-8").decode("ascii")
-
-    console.print(
-        Panel(f"[bold cyan]Updating {user}[/bold cyan]", expand=False),
-        justify="center",
+    user: str = (
+        get_user_info(submission["user_id"])["name"].encode("utf-8").decode("ascii")
     )
+
+    logger.info(f"Updating [bold cyan]{user}[/bold cyan]")
 
     submission_history = sorted(
         submission["submission_history"], key=lambda x: x["attempt"]
@@ -52,13 +52,13 @@ def interactive_grader(submission):
     total = sum([i["points"] for i in most_recent_answers])
     fudge_points = initial_fudge_points
     if fudge_points > 0 and total in (0, max_points) or total == 0:
-        console.print("No fudging required.")
+        logger.info("No fudging required.")
         return
 
     if total + fudge_points > max_points and respect_cap:
         fudge_points = max_points - total
 
-    console.print(f"{total} --> {total+fudge_points}")
+    logger.info(f"{total} --> {total+fudge_points}")
 
     payload = {
         "quiz_submissions": [
@@ -73,9 +73,9 @@ def interactive_grader(submission):
 
 
 def main():
-    console.print("Downloading User Data...")
+    logger.info("Downloading User Data...")
     get_users()
-    console.print("Fetching Quiz Answers...")
+    logger.info("Fetching Quiz Answers...")
     quiz = get_quiz_info()
     quiz_assignment_id = quiz["assignment_id"]
     for submission in get_quiz_submission_history(quiz_assignment_id):
@@ -84,8 +84,7 @@ def main():
         except KeyboardInterrupt:
             continue
         except Exception as e:
-            # raise (e)
-            print(e)
+            logger.error(e)
             continue
 
 
