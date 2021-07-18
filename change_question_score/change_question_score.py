@@ -21,7 +21,7 @@ sys.path.insert(0, str(Path(os.path.realpath(__file__)).parent.parent))
 from utils import (  # pylint:disable=wrong-import-position
     submit_quiz_payload,
     get_quiz_info,
-    get_users,
+    get_users_ids,
     get_user_info,
     get_quiz_submission_history,
     logger,
@@ -72,7 +72,7 @@ def process_submission(submission):
 
 def main():
     logger.info("Downloading User Data...")
-    get_users()
+    get_users_ids()
     logger.info("Fetching Quiz Answers...")
     quiz = get_quiz_info()
     quiz_assignment_id = quiz["assignment_id"]

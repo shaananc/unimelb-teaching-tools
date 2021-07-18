@@ -1,4 +1,5 @@
 # Unimelb CS Teaching Scripts
+
 This repository contains collection of scripts for use with University of Melbourne teaching infrastructure.
 
 The original set are based off work for Foundations of Algorithms by Shaanan Cohney. They make heavy use of code written for CS50, Harvard's introduction to Computer Science.
@@ -17,18 +18,14 @@ Most scripts require config.ini which can be placed either in your current worki
 
 A few scripts require you to add a rubric, a sample of which is included. These need Canvas Question IDs, that you can pull by exporting a quiz from Canvas' web interface and viewing the resulting CSV.
 
-
-| Folder      | Description |
-| ----------- | ----------- |
-| add_global_fudge_points      | Adds fudge points to a Canvas student quiz       |
-| autograding      | Docker image, shell script, and python scripts, that enable automatic grading of C code (or other languages)       |
-| change_question_score      | Demo of how to adjust the score students receive for a particular Canvas quiz question, for example to fix an error       |
-| code_to_pdf      | Light wrapper around render50 to produce PDFs from student code       |
-| download_quiz_questions      | Downloads student quiz questions locally for further analysis/autograding       |
-| get_scores_grok      | Use an undocumented Grok API to fetch the full details of which tests a student has passed (beyond what the web interface allows for export)       |
-| grade_coding_quiz      | Fancy terminal interface for grading Canvas quizzes, easy adaptable, faster than Speedgrader for my uses       |
-| questions_to_csv      | Retrieves question-by-question points breakdown from Canvas quiz and stores it in a CSV       |
-
-
-
-
+| Folder                  | Description                                                                                                                                  |
+| ----------------------- | -------------------------------------------------------------------------------------------------------------------------------------------- |
+| add_global_fudge_points | Adds fudge points to a Canvas student quiz                                                                                                   |
+| autograding             | Docker image, shell script, and python scripts, that enable automatic grading of C code (or other languages)                                 |
+| change_question_score   | Demo of how to adjust the score students receive for a particular Canvas quiz question, for example to fix an error                          |
+| code_to_pdf             | Light wrapper around render50 to produce PDFs from student code                                                                              |
+| download_quiz_questions | Downloads student quiz questions locally for further analysis/autograding                                                                    |
+| get_scores_grok         | Use an undocumented Grok API to fetch the full details of which tests a student has passed (beyond what the web interface allows for export) |
+| grade_coding_quiz       | Fancy terminal interface for grading Canvas quizzes, easy adaptable, faster than Speedgrader for my uses                                     |
+| questions_to_csv        | Retrieves question-by-question points breakdown from Canvas quiz and stores it in a CSV                                                      |
+| students_to_csv         | Get section and student details in CSV format                                                                                                |

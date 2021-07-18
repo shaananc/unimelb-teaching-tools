@@ -26,7 +26,7 @@ from utils import (  # pylint:disable=wrong-import-position
     get_quiz_submission_history,
     get_quiz_info,
     get_user_info,
-    get_users,
+    get_users_ids,
     submit_quiz_payload,
     get_truthy_config_option,
     logger,
@@ -290,7 +290,7 @@ def grade_submission(submission):
 
 def main():
     logger.info("Downloading User Data...")
-    get_users()
+    get_users_ids()
     logger.info("Fetching Quiz Answers...")
     quiz = get_quiz_info()
     quiz_assignment_id = quiz["assignment_id"]

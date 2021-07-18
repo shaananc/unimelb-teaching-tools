@@ -15,6 +15,9 @@ canvas_course_id = 107518
 # the Canvas quiz id
 quiz_id = 109025
 
+# logging level can be one of CRITICAL, ERROR, WARNING, INFO, DEBUG
+log_level = INFO
+
 [GROK]
 # the grok session token, extracted from the cookies of a logged in user (note I have attempted to provide a Selenium-based startup-screen to grab this automatically if unset)
 grok_token = sdfk349fjdskj

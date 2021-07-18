@@ -50,6 +50,10 @@ assert result
 logger.info("Configuration File Successfully Read.")
 
 
+if "log_level" in config[CONFIG_GLOBAL_KEY]:
+    logger.setLevel(config[CONFIG_GLOBAL_KEY]["log_level"])
+
+
 # Global variables for API use
 global_section = config[CONFIG_GLOBAL_KEY]
 headers = {"Authorization": "Bearer " + global_section["canvas_token"]}
@@ -73,9 +77,8 @@ def canvas_handled_get_request(url, payload) -> Response:
     return r
 
 
-# uncomment to cache the list of users, cache is stored at ~/.cachier
 @cachier(stale_after=timedelta(days=cache_expiry))
-def get_users():
+def get_users_ids():
     users = {}
     payload = {
         "include[]": [],
@@ -85,23 +88,26 @@ def get_users():
         r = canvas_handled_get_request(url, payload)
         vals = json.loads(r.text)
         users |= {u["id"]: u for u in vals}
-        if r.links.get("next"):
-            url = r.links.get("next")
-            if url:
-                url = url["url"]
-            else:
+        link = r.links.get("next")
+        if link:
+            url = link["url"]
+            if not url:
                 break
         else:
             break
     return users
 
 
+def get_links():
+    pass
+
+
 def get_user_info(user_id: int) -> Dict[str, Optional[Union[int, str]]]:
     try:
-        return get_users()[user_id]
+        return get_users_ids()[user_id]
     except KeyError:
-        get_users.clear_cache()
-        return get_users()[user_id]
+        get_users_ids.clear_cache()
+        return get_users_ids()[user_id]
 
 
 def get_quiz_info() -> Dict[str, Any]:
@@ -123,11 +129,10 @@ def get_quiz_submission_history(quiz_assignment_id: int) -> Iterator[Dict[str, A
         submissions = json.loads(r.text)
         for submission in submissions:
             yield submission
-        if r.links.get("next"):
-            url = r.links.get("next")
-            if url:
-                url = url["url"]
-            else:
+        link = r.links.get("next")
+        if link:
+            url = link["url"]
+            if not url:
                 break
         else:
             break
@@ -153,6 +158,25 @@ def submit_quiz_payload(submission_id, payload) -> None:
         r.raise_for_status()
 
 
+def get_course_users():
+    """Alternate API call to get course users"""
+    url = f"{class_url}/users"
+    payload = {"sort": "username", "include[]": []}
+
+    while True:
+        r = canvas_handled_get_request(url, payload)
+        submissions = json.loads(r.text)
+        for submission in submissions:
+            yield submission
+        link = r.links.get("next")
+        if link:
+            url = link["url"]
+            if not url:
+                break
+        else:
+            break
+
+
 def get_quiz_answers(submission_id: int):
     """Gets the official answers for a quiz"""
     quiz_submissions_questions_url = (
@@ -161,6 +185,29 @@ def get_quiz_answers(submission_id: int):
     payload = {
         "include[]": [],
     }
-    r = requests.get(quiz_submissions_questions_url, headers=headers, params=payload)
+    r = canvas_handled_get_request(quiz_submissions_questions_url, payload)
     questions = json.loads(r.text)
     return sorted(questions["quiz_submission_questions"], key=lambda x: x["position"])
+
+
+@cachier(stale_after=timedelta(days=cache_expiry))
+def get_section_info():
+    """Gets a list of sections and students enrolled in them"""
+    url = class_url + "/sections"
+    payload = {
+        "include[]": ["students", "total_students", "enrollments"],
+    }
+    sections = []
+    while True:
+        r = canvas_handled_get_request(url, payload)
+        sections += json.loads(r.text)
+        link = r.links.get("next")
+        if link:
+            url = link["url"]
+            if not url:
+                break
+        else:
+            break
+
+    logger.info(sections)
+    return sections
