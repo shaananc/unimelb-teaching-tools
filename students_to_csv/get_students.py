@@ -1,8 +1,5 @@
 #!/usr/bin/env python3
-"""This script downloads student quiz responses into individual files within ./{quiz_id}/
-The subfolder 'by_user' contains one folder for each student login, within which each question is stored in its own file.
-The subfolder 'by_question' contains one folder for each question, within which each user's answer is stored in its own file.
-
+"""This script downloads information about the workshops/tutorials in a class, and also downloads information about the students, and stores both datasets in CSV files
 This script is supplemented by config.ini, for which a sample is provided.
 """
 from pathlib import Path
@@ -16,8 +13,6 @@ from pathlib import Path
 
 sys.path.insert(0, str(Path(os.path.realpath(__file__)).parent.parent))
 from utils import (  # pylint:disable=wrong-import-position
-    get_users_ids,
-    get_user_info,
     get_section_info,
     logger,
 )
