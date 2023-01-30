@@ -9,6 +9,7 @@ from typing import ClassVar, Type
 from datetime import datetime
 import challenge
 import lesson
+import slide
 from pathlib import Path
 import yaml
 from marshmallow_dataclass import dataclass
@@ -28,7 +29,7 @@ import logging
 
 FORMAT = "%(message)s"
 logging.basicConfig(
-    level="DEBUG", format=FORMAT, datefmt="[%X]", handlers=[RichHandler()]
+    level="INFO", format=FORMAT, datefmt="[%X]", handlers=[RichHandler()]
 )
 
 log = logging.getLogger("rich")
@@ -88,12 +89,11 @@ class edAPI:
         ):
             if not hasattr(self, "base_url") or not self.base_url:
                 log.error("No base_url set!")
-                return {}
+                raise Exception("No base_url set!")
 
             if not hasattr(self, "token") or not self.token:
                 log.error("No token set!")
-                return {}
-
+                raise Exception("No token set!")
             if self.url_suffix and not url_suffix:
                 url_suffix = self.url_suffix
 
@@ -102,7 +102,7 @@ class edAPI:
             if include_sid:
                 if not hasattr(self, "sid") or not self.sid:
                     log.error("No sid set!")
-                    return {}
+                    raise Exception("No sid set!")
                 else:
                     full_url = full_url + "/" + str(self.sid)
 
@@ -129,15 +129,25 @@ class edAPI:
                 ).prepare()
             elif files:
                 request = requests.Request(
-                    method, full_url, files=files, headers=auth
+                    method,
+                    full_url,
+                    files=files,
+                    headers=auth,
                 ).prepare()
             else:
                 request = requests.Request(method, full_url, headers=auth).prepare()
 
-            log.debug(request.__dict__)
             if (DRY_RUN_ALLOW_GETS and method == "GET") or not DRY_RUN:
-                response = session.send(request)
-                response.raise_for_status()
+                response = session.send(request, verify=True)
+                try:
+                    response.raise_for_status()
+                except requests.exceptions.HTTPError as e:
+                    try:
+                        log.error(response.json())
+                    except requests.exceptions.JSONDecodeError:
+                        pass
+                    raise e
+
                 log.debug(response.__dict__)
                 try:
                     return response.json()
@@ -161,8 +171,14 @@ class edAPI:
             data = data[class_name.lower()]
 
             obj = schema.load(data)
-            self.__dict__.update(obj.__dict__)
-            return self
+            obj.base_url = self.base_url
+            obj.url_suffix = self.url_suffix
+            obj.token = self.token
+            obj.class_id = self.class_id
+            obj.url_suffix = self.url_suffix
+            obj.sid = obj.id
+
+            return obj
 
         def wrap(self, data):
             class_name = self.__class__.__name__
@@ -214,17 +230,23 @@ class edAPI:
         def save(self):
             return self.put(json_data=self.json())
 
-        def create(self):
-            # fast pluralize hack
-            # url_suffix = self.url_suffix
-            # if url_suffix and url_suffix[-1] != 's':
-            #     url_suffix = url_suffix + 's'
-
-            return self.post(
+        def create(self, create_suffix=""):
+            if not create_suffix:
+                create_suffix = self.url_suffix
+            response = self.post(
                 json_data=self.json(),
                 include_sid=False,
-                url_suffix=f"courses/{self.class_id}/{self.url_suffix}",
+                url_suffix=create_suffix,
             )
+            class_name = self.__class__
+            schema = marshmallow_dataclass.class_schema(class_name)()
+
+            class_name = self.__class__.__name__
+            data = response[class_name.lower()]
+            obj = schema.load(data)
+            self.__dict__.update(obj.__dict__)
+            self.sid = self.id
+            return self
 
     class Module(EDAPI_OBJ):
         name: Optional[str | None]
@@ -240,6 +262,10 @@ class edAPI:
             self.name: str | None = None
             return self
 
+        def create(self):
+            return super().create(f"courses/{self.class_id}/{self.url_suffix}")
+
+    @dataclass
     class Slide(EDAPI_OBJ):
         original_id: Optional[int | None]
         lesson_id: Optional[int | None]
@@ -263,19 +289,8 @@ class edAPI:
         status: Optional[str | None]
 
         def save(self):
-            return self.put(data=self.dump())
-
-        def put(self, data):
-            data = json.loads(self.json_str())
-            data.pop("created_at")
-            data.pop("updated_at")
-            data.pop("original_id")
-
-            data = dict(slide=json.dumps(data))
-
-            log.debug(data)
-
-            return super().put(data=data)
+            ffiles = {"slide": (None, json.dumps(self.dump()))}
+            return self.api_request(method="PUT", files=ffiles)
 
         def new(self, base_url=None, token=None, sid=None, class_id=None):
             super().new(
@@ -306,6 +321,29 @@ class edAPI:
             self.type: str | None = None
             self.status: str | None = None
             return self
+
+        def create(self):
+
+            ffiles = {"slide": (None, json.dumps({"type": self.type}))}
+            response = self.api_request(
+                method="POST",
+                url_suffix=f"lessons/{self.lesson_id}/slides",
+                files=ffiles,
+                include_sid=False,
+            )
+
+            class_name = self.__class__
+            schema = marshmallow_dataclass.class_schema(class_name)()
+
+            class_name = self.__class__.__name__
+            data = response[class_name.lower()]
+            obj = schema.load(data)
+            self.__dict__.update(obj.__dict__)
+            self.sid = self.id
+            return self
+
+        def put(self, data=None, json_data=None, files=None):
+            return self.api_request("PUT", data=data, json_data=json_data, files=files)
 
         def get_challenge(self):
             schema = marshmallow_dataclass.class_schema(edAPI.Challenge)()
@@ -372,6 +410,9 @@ class edAPI:
         attempted_at: Optional[datetime | None] = None
         id: Optional[int | None] = None
         slides: Optional[List[lesson.SlideDataClass] | None] = None
+
+        def create(self):
+            return super().create(f"courses/{self.class_id}/{self.url_suffix}")
 
         def new(
             self, base_url=None, token=None, sid=None, url_suffix=None, class_id=None
@@ -586,9 +627,25 @@ class edAPI:
             return super().patch(json_data=data)
 
     def slide(self, sid=None):
-        return self.Slide().new(
-            base_url=self.base_url, token=self.token, sid=sid, class_id=self.class_id
-        )
+        return self.Slide(
+            None,
+            None,
+            None,
+            None,
+            None,
+            None,
+            None,
+            None,
+            None,
+            None,
+            None,
+            None,
+            None,
+            None,
+            None,
+            None,
+            None,
+        ).new(base_url=self.base_url, token=self.token, sid=sid, class_id=self.class_id)
 
     def lesson(self, sid=None):
         return self.Lesson().new(
@@ -606,7 +663,7 @@ class edAPI:
         )
 
 
-def create_challenge(folder: Path, session: edAPI, slide: edAPI.Slide):
+def create_challenge(folder: Path, session: edAPI, lesson: edAPI.Lesson):
     # set content to the contents of content.amber
     content = (folder / "content.xml").read_text()
     # set solution_text to the contents of solution_notes.amber
@@ -617,16 +674,11 @@ def create_challenge(folder: Path, session: edAPI, slide: edAPI.Slide):
     problem_yaml_path = folder / "problem.yaml"
     grok_problem = GrokProblem.from_yaml(str(problem_yaml_path))
 
-    # create a new slide object
-    # slide = session.slide('217582').get()
-    # challenge = slide.get_challenge()
-    # challenge = session.challenge('75698').get()
-    # log.debug(challenge)
+    slide = get_new_or_old_slide(session, lesson, grok_problem.title, "code")
+    slide.content = content
+    slide.save()
 
     mychallenge = slide.get_challenge()
-
-    slide.title = grok_problem.title  # type: ignore
-    slide.content = content
 
     grok_ed_map = (
         ("workspace", "scaffold"),
@@ -650,16 +702,14 @@ def create_challenge(folder: Path, session: edAPI, slide: edAPI.Slide):
                             "*.yaml",
                             str(wfile.absolute()),
                             url,
-                        ]
+                        ],
+                        check=True,
                     )
-                    subprocess.run(["rsync", str(makefile.absolute()), url])
+                    subprocess.run(["rsync", str(makefile.absolute()), url], check=True)
 
     # set the content to the contents of content.amber
-    # challenge.content = content
-    # set the explanation to the contents of solution_notes.amber
-    # challenge.explanation = solution_text
-    # log.debug(grok_problem.title)
-    # log.debug(content)
+    mychallenge.content = content
+    mychallenge.explanation = solution_text
     mychallenge.settings.build_command = "make all"  # type: ignore
     mychallenge.settings.run_command = "make run"  # type: ignore
     mychallenge.settings.check_command = "make run"  # type: ignore
@@ -674,7 +724,6 @@ def create_challenge(folder: Path, session: edAPI, slide: edAPI.Slide):
         grok_test = GrokTest.from_yaml(str(f))
         log.info(f)
         relative_dir = f.relative_to(folder / "tests").parent
-        # log.info(grok_test.__dict__)
         testcase = challenge.Testcase(
             None,
             None,
@@ -727,20 +776,58 @@ def create_challenge(folder: Path, session: edAPI, slide: edAPI.Slide):
     mychallenge.save()
 
 
-def create_slides_and_challenges(slide_folder: Path, session: edAPI, lesson: edAPI.Lesson):
+def slide_exists(session: edAPI, lesson: edAPI.Lesson, slide_title: str) -> bool:
+    pass
+
+
+def get_new_or_old_slide(
+    session: edAPI, lesson: edAPI.Lesson, slide_title: str, slide_type: str
+) -> edAPI.Slide:
+    slide: edAPI.Slide = session.slide()
+    new_slide = True
+    if lesson.slides:
+        for t in lesson.slides:
+            if t.title == slide_title:
+                log.warning(f"Slide {slide_title} already exists")
+                slide = session.slide(t.id).get()  # type: ignore
+                new_slide = False
+                break
+    slide.type = slide_type
+    slide.lesson_id = lesson.id
+    if new_slide:
+        slide.create()
+    slide.title = slide_title
+    slide.save()
+    return slide
+
+
+def create_slides_and_challenges(
+    slide_folder: Path, session: edAPI, lesson: edAPI.Lesson
+):
+
     i = 0
     while True:
         ref_path = Path(slide_folder / f"{i}.ref")
-        html_path = Path(slide_folder / f"{i}.html")
+        xml_path = Path(slide_folder / f"{i}.xml")
         if ref_path.exists():
             # create challenge
             ref = ref_path.read_text()
-        elif html_path.exists():
+            challenge_path = Path("output/grok_exercises") / ref
+            if not challenge_path.exists():
+                log.error(f"Challenge Path {challenge_path} does not exist")
+                sys.exit(1)
+
+            create_challenge(challenge_path, session, lesson)
+        elif xml_path.exists():
             # create slide
-            content = html_path.read_text()
-            slide = session.slide()
+            metadata = json.loads(xml_path.with_suffix(".json").read_text())
+            slide = get_new_or_old_slide(session, lesson, metadata["title"], "document")
+            slide.content = xml_path.read_text()
+            slide.save()
+
         else:
             break
+        i += 1
 
 
 def create_lesson(
