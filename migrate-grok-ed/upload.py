@@ -40,6 +40,7 @@ ED_COURSE_ID: str = "10611"  # playground
 
 DRY_RUN = False
 DRY_RUN_ALLOW_GETS = True
+ALLOW_RSYNC = False
 
 
 session = requests.Session()
@@ -494,13 +495,13 @@ class edAPI:
             new_lessons = []
             new_modules = []
             lesson_schema = marshmallow_dataclass.class_schema(edAPI.Lesson)()
-            for lesson in response['lessons']:
-              new_lessons.append(lesson_schema.load(lesson))
-            
+            for lesson in response["lessons"]:
+                new_lessons.append(lesson_schema.load(lesson))
+
             module_schema = marshmallow_dataclass.class_schema(edAPI.Module)()
-            for module in response['modules']:
+            for module in response["modules"]:
                 new_modules.append(module_schema.load(module))
-            
+
             return new_lessons, new_modules
 
     class Challenge(EDAPI_OBJ):
@@ -680,7 +681,7 @@ class edAPI:
             None,
             None,
             None,
-            None
+            None,
         ).new(base_url=self.base_url, token=self.token, sid=sid, class_id=self.class_id)
 
     def lesson(self, sid=None):
@@ -689,7 +690,7 @@ class edAPI:
         )
 
     def module(self, sid=None):
-        return self.Module(None,None,None,None,None,None).new(
+        return self.Module(None, None, None, None, None, None).new(
             base_url=self.base_url, token=self.token, sid=sid, class_id=self.class_id
         )
 
@@ -735,7 +736,7 @@ def create_challenge(folder: Path, session: edAPI, lesson: edAPI.Lesson):
             if not wfile.name.endswith(".yaml"):
                 url = f"challenge.{mychallenge.id}.{ed_folder}@git.edstem.org:"
                 log.info(f"Uploading {wfile} to {url}")
-                if not DRY_RUN:
+                if not DRY_RUN and ALLOW_RSYNC:
                     subprocess.run(
                         [
                             "/opt/homebrew/bin/rsync",
@@ -754,7 +755,6 @@ def create_challenge(folder: Path, session: edAPI, lesson: edAPI.Lesson):
                         )
                     else:
                         log.warn(f"Makefile does not exist at {makefile}")
-
 
     # set the content to the contents of content.amber
     mychallenge.content = content
@@ -816,8 +816,8 @@ def create_challenge(folder: Path, session: edAPI, lesson: edAPI.Lesson):
             check.expect_path = str(relative_dir / "stdio")
         else:
             log.warn(f"Neither stdout or stdio exist for {grok_test.label}")
-            check.expect_path = str('')
-            #raise Exception(f"Neither stdout or stdio exist for {grok_test.label}")
+            check.expect_path = str("")
+            # raise Exception(f"Neither stdout or stdio exist for {grok_test.label}")
 
         check.type = "check_diff"
         check.source = challenge.Source("source_mixed", "")
@@ -829,15 +829,12 @@ def create_challenge(folder: Path, session: edAPI, lesson: edAPI.Lesson):
     slide.save()
 
 
-def slide_exists(session: edAPI, lesson: edAPI.Lesson, slide_title: str) -> bool:
-    pass
-
-
 def get_new_or_old_slide(
     session: edAPI, lesson: edAPI.Lesson, slide_title: str, slide_type: str
 ) -> edAPI.Slide:
     slide: edAPI.Slide = session.slide()
     new_slide = True
+    lesson = session.lesson(lesson.id).get()  # type: ignore
     if lesson.slides:
         for t in lesson.slides:
             if t.title == slide_title:
@@ -858,6 +855,8 @@ def get_new_or_old_slide(
 def create_slides_and_challenges(
     slide_folder: Path, session: edAPI, lesson: edAPI.Lesson
 ):
+
+    # TODO: check if the slide already exists
 
     i = 0
     while True:
@@ -896,7 +895,7 @@ def create_lesson(
     if lesson_folder.name in existing_lessons:
         # check all the lessons with that name to see if they are under this module
         for l in existing_lessons[lesson_folder.name]:
-            #lesson = session.lesson(l).get()
+            # lesson = session.lesson(l).get()
             if l.module_id == module.id:
                 lesson = l
                 log.warn(
