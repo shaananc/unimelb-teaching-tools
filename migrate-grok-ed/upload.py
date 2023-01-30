@@ -22,6 +22,7 @@ from pydantic import BaseModel
 from pprint import pprint
 import subprocess
 import sys
+from collections import defaultdict
 
 ## add logging with rich
 from rich.logging import RichHandler
@@ -68,13 +69,13 @@ class edAPI:
         token: Optional[str]
         base_url: Optional[str]
         url_suffix: Optional[str]
-        sid: Optional[int]
+        id: Optional[int]
         Schema: ClassVar[Type[Schema]] = Schema  # type: ignore
 
         def new(self, base_url="", url_suffix="", token="", sid=None, class_id=None):
             self.base_url = base_url
             self.url_suffix = url_suffix
-            self.sid = sid
+            self.id = sid
             self.token = token
             self.class_id = class_id
 
@@ -100,11 +101,11 @@ class edAPI:
             full_url = self.base_url + "/" + url_suffix
 
             if include_sid:
-                if not hasattr(self, "sid") or not self.sid:
+                if not hasattr(self, "id") or not self.id:
                     log.error("No sid set!")
                     raise Exception("No sid set!")
                 else:
-                    full_url = full_url + "/" + str(self.sid)
+                    full_url = full_url + "/" + str(self.id)
 
             auth = {"Authorization": "Bearer " + self.token}
 
@@ -137,6 +138,7 @@ class edAPI:
             else:
                 request = requests.Request(method, full_url, headers=auth).prepare()
 
+            # log.debug(request.__dict__)
             if (DRY_RUN_ALLOW_GETS and method == "GET") or not DRY_RUN:
                 response = session.send(request, verify=True)
                 try:
@@ -148,7 +150,6 @@ class edAPI:
                         pass
                     raise e
 
-                log.debug(response.__dict__)
                 try:
                     return response.json()
                 except requests.exceptions.JSONDecodeError as e:
@@ -176,7 +177,6 @@ class edAPI:
             obj.token = self.token
             obj.class_id = self.class_id
             obj.url_suffix = self.url_suffix
-            obj.sid = obj.id
 
             return obj
 
@@ -212,7 +212,7 @@ class edAPI:
                 url_suffix=url_suffix,
             )
             if response:
-                self.sid = self.unwrap(response)["id"]
+                self.id = self.unwrap(response)["id"]
             return response
 
         def dump(self):
@@ -245,11 +245,16 @@ class edAPI:
             data = response[class_name.lower()]
             obj = schema.load(data)
             self.__dict__.update(obj.__dict__)
-            self.sid = self.id
             return self
 
+    @dataclass
     class Module(EDAPI_OBJ):
         name: Optional[str | None]
+        user_id: Optional[int | None]
+        created_at: Optional[datetime | None]
+        updated_at: Optional[datetime | None]
+        course_id: Optional[int | None]
+        id: Optional[int | None]
 
         def new(self, base_url=None, token=None, sid=None, class_id=None):
             super().new(
@@ -260,6 +265,10 @@ class edAPI:
                 class_id=class_id,
             )
             self.name: str | None = None
+            self.user_id: int | None = None
+            self.created_at: datetime | None = None
+            self.updated_at: datetime | None = None
+            self.course_id: int | None = None
             return self
 
         def create(self):
@@ -287,6 +296,10 @@ class edAPI:
         index: Optional[int | None]
         type: Optional[str | None]
         status: Optional[str | None]
+        active_status: Optional[bool | None]
+        is_survey: Optional[bool | None]
+        passage: Optional[str | None]
+        mode: Optional[str | None]
 
         def save(self):
             ffiles = {"slide": (None, json.dumps(self.dump()))}
@@ -320,6 +333,10 @@ class edAPI:
             self.index: int | None = None
             self.type: str | None = None
             self.status: str | None = None
+            self.active_status: Optional[bool | None]
+            self.is_survey: Optional[bool | None]
+            self.passage: Optional[str | None]
+            self.mode: Optional[str | None]
             return self
 
         def create(self):
@@ -339,7 +356,6 @@ class edAPI:
             data = response[class_name.lower()]
             obj = schema.load(data)
             self.__dict__.update(obj.__dict__)
-            self.sid = self.id
             return self
 
         def put(self, data=None, json_data=None, files=None):
@@ -362,7 +378,7 @@ class edAPI:
             obj: edAPI.Challenge = schema.load(data)  # type: ignore
             obj.base_url = self.base_url
             obj.token = self.token
-            obj.sid = self.challenge_id
+            obj.id = self.challenge_id
             obj.url_suffix = "challenges"
 
             return obj
@@ -409,7 +425,7 @@ class edAPI:
         number: Optional[int | None] = None
         attempted_at: Optional[datetime | None] = None
         id: Optional[int | None] = None
-        slides: Optional[List[lesson.SlideDataClass] | None] = None
+        slides: Optional[List[slide.SlideDataClass] | None] = None
 
         def create(self):
             return super().create(f"courses/{self.class_id}/{self.url_suffix}")
@@ -466,15 +482,26 @@ class edAPI:
             self.course_id: Optional[int | None] = None
             self.number: Optional[int | None] = None
             self.attempted_at: Optional[datetime | None] = None
-            self.id: Optional[int | None] = None
-            self.slides: Optional[List[lesson.SlideDataClass] | None] = None
+            self.id: Optional[int | None] = sid
+            self.slides: Optional[List[slide.SlideDataClass] | None] = None
 
             return self
 
         def get_all(self):
-            return self.api_request(
+            response = self.api_request(
                 "GET", url_suffix=f"courses/{self.class_id}/lessons", include_sid=False
             )
+            new_lessons = []
+            new_modules = []
+            lesson_schema = marshmallow_dataclass.class_schema(edAPI.Lesson)()
+            for lesson in response['lessons']:
+              new_lessons.append(lesson_schema.load(lesson))
+            
+            module_schema = marshmallow_dataclass.class_schema(edAPI.Module)()
+            for module in response['modules']:
+                new_modules.append(module_schema.load(module))
+            
+            return new_lessons, new_modules
 
     class Challenge(EDAPI_OBJ):
         check_hash: Optional[str | None]
@@ -564,7 +591,7 @@ class edAPI:
             self.exam_visibility_alternate_hour: bool | None = None
             self.explanation: str | None = None
             self.features: Dict[str, bool] | None = None
-            self.id: int | None = None
+            self.id: int | None = sid
             self.is_active: bool | None = None
             self.is_exam: bool | None = None
             self.is_feedback_visible: bool | None = None
@@ -596,22 +623,27 @@ class edAPI:
             return self
 
         def save(self):
-            self.patch(json_data=self.json_str())
-            base_suffix = self.url_suffix + "/" + str(self.sid) + "/connect/"
+            base_suffix = self.url_suffix + "/" + str(self.id) + "/connect/"
             urls = [
                 base_suffix + a for a in ["scaffold", "solution", "testbase", "check"]
             ]
             for url in urls:
-                log.debug(f"Posting {url}")
                 self.api_request("POST", url_suffix=url, include_sid=False)
 
-            base_suffix = self.url_suffix + "/" + str(self.sid) + "/update/"
+            base_suffix = self.url_suffix + "/" + str(self.id) + "/update/"
             urls = [
                 base_suffix + a for a in ["scaffold", "solution", "testbase", "check"]
             ]
             for url in urls:
-                log.debug(f"Posting {url}")
                 self.api_request("POST", url_suffix=url, include_sid=False)
+
+            self.api_request(
+                "POST",
+                url_suffix=self.url_suffix + f"/{self.id}/connect/testbase",
+                json_data=json.dumps({"user_id": None, "password": None, "i": None}),
+                include_sid=False,
+            )
+            self.patch(json_data=self.json_str())
 
         def patch(self, json_data):
             data = json.loads(self.json_str())
@@ -645,6 +677,10 @@ class edAPI:
             None,
             None,
             None,
+            None,
+            None,
+            None,
+            None
         ).new(base_url=self.base_url, token=self.token, sid=sid, class_id=self.class_id)
 
     def lesson(self, sid=None):
@@ -653,7 +689,7 @@ class edAPI:
         )
 
     def module(self, sid=None):
-        return self.Module().new(
+        return self.Module(None,None,None,None,None,None).new(
             base_url=self.base_url, token=self.token, sid=sid, class_id=self.class_id
         )
 
@@ -678,6 +714,12 @@ def create_challenge(folder: Path, session: edAPI, lesson: edAPI.Lesson):
     slide.content = content
     slide.save()
 
+    if grok_problem.language == 20:
+        log.warn(
+            f"Skipping slide {grok_problem.title} because it is a multiple choice quiz"
+        )
+        return
+
     mychallenge = slide.get_challenge()
 
     grok_ed_map = (
@@ -688,10 +730,10 @@ def create_challenge(folder: Path, session: edAPI, lesson: edAPI.Lesson):
     )
     makefile = folder / "workspace" / "Makefile"
     for grok_folder, ed_folder in grok_ed_map:
-        log.info(f"Uploading {grok_folder} to {ed_folder}")
+        # log.info(f"Uploading {grok_folder} to {ed_folder}")
         for wfile in (folder / grok_folder).glob("*"):
             if not wfile.name.endswith(".yaml"):
-                url = f"challenge.{mychallenge.sid}.{ed_folder}@git.edstem.org:"
+                url = f"challenge.{mychallenge.id}.{ed_folder}@git.edstem.org:"
                 log.info(f"Uploading {wfile} to {url}")
                 if not DRY_RUN:
                     subprocess.run(
@@ -705,10 +747,14 @@ def create_challenge(folder: Path, session: edAPI, lesson: edAPI.Lesson):
                         ],
                         check=True,
                     )
-                    subprocess.run(
-                        ["/opt/homebrew/bin/rsync", str(makefile.absolute()), url],
-                        check=True,
-                    )
+                    if makefile.exists():
+                        subprocess.run(
+                            ["/opt/homebrew/bin/rsync", str(makefile.absolute()), url],
+                            check=True,
+                        )
+                    else:
+                        log.warn(f"Makefile does not exist at {makefile}")
+
 
     # set the content to the contents of content.amber
     mychallenge.content = content
@@ -721,6 +767,7 @@ def create_challenge(folder: Path, session: edAPI, lesson: edAPI.Lesson):
 
     mychallenge.tickets.mark_standard.easy = False  # penalize whitespace infractions
     mychallenge.tickets.mark_standard.run_limit.pty = False  # make the output match up with the terminal output without having to interleave
+    mychallenge.type = "code"
 
     testcases: List[challenge.Testcase] = []
     for f in (folder / "tests").rglob("*.yaml"):
@@ -768,8 +815,10 @@ def create_challenge(folder: Path, session: edAPI, lesson: edAPI.Lesson):
         elif (folder / "tests" / relative_dir / "stdio").exists():
             check.expect_path = str(relative_dir / "stdio")
         else:
-            log.error(f"Neither stdout or stdio exist for {grok_test.label}")
-            sys.exit(1)
+            log.warn(f"Neither stdout or stdio exist for {grok_test.label}")
+            check.expect_path = str('')
+            #raise Exception(f"Neither stdout or stdio exist for {grok_test.label}")
+
         check.type = "check_diff"
         check.source = challenge.Source("source_mixed", "")
         testcase.checks = [check]
@@ -777,6 +826,7 @@ def create_challenge(folder: Path, session: edAPI, lesson: edAPI.Lesson):
 
     mychallenge.tickets.mark_standard.testcases = testcases
     mychallenge.save()
+    slide.save()
 
 
 def slide_exists(session: edAPI, lesson: edAPI.Lesson, slide_title: str) -> bool:
@@ -798,6 +848,7 @@ def get_new_or_old_slide(
     slide.type = slide_type
     slide.lesson_id = lesson.id
     if new_slide:
+        log.info(f"Creating new slide {slide_title}")
         slide.create()
     slide.title = slide_title
     slide.save()
@@ -837,31 +888,28 @@ def create_lesson(
     lesson_folder: Path,
     session: edAPI,
     module: edAPI.Module,
-    existing_lessons: Dict[str, int],
+    existing_lessons,
 ):
     # check if a lesson of that name already exists under that module
     lesson: edAPI.Lesson | None = None
+    still_not_seen = True
     if lesson_folder.name in existing_lessons:
-        lesson = session.lesson(existing_lessons[lesson_folder.name]).get()
-        if lesson.module_id != module.sid:
-            log.warning(
-                f"Lesson {lesson_folder.name} already exists under a different module, creating new lesson"
-            )
-            lesson = session.lesson()
-            lesson.title = lesson_folder.name
-            lesson.module_id = module.sid
-            lesson.type = "c"
-            lesson.create()
-            lesson.save()
+        # check all the lessons with that name to see if they are under this module
+        for l in existing_lessons[lesson_folder.name]:
+            #lesson = session.lesson(l).get()
+            if l.module_id == module.id:
+                lesson = l
+                log.warn(
+                    f"Lesson {lesson_folder.name} already exists under {module.name}"
+                )
+                still_not_seen = False
 
-        else:
-            log.debug(f"Lesson {lesson_folder.name} already exists under this module")
-    else:
+    if still_not_seen == True:
         lesson = session.lesson()
         lesson.title = lesson_folder.name
-        lesson.module_id = module.sid
-        lesson.type = "c"
         lesson.create()
+        lesson.type = "c"
+        lesson.module_id = module.id
         lesson.save()
 
     # create slides and challenges
@@ -869,7 +917,7 @@ def create_lesson(
 
 
 def create_module(
-    module_folder: Path, session: edAPI, existing_modules: Dict[str, int]
+    module_folder: Path, session: edAPI, existing_modules, existing_lessons
 ):
     # create a new lesson
     module = session.module()
@@ -889,7 +937,7 @@ def create_module(
     module.name = module_json["title"]
     if module.name in existing_modules:
         log.info(f"Module {module.name} already exists, skipping")
-        module = session.module(existing_modules[module.name])
+        module = existing_modules[module.name][0]
     else:
         log.info(f"Creating module {module.name}")
         module.create()
@@ -897,25 +945,31 @@ def create_module(
     # for each lesson folder in the module folder
     for lesson_folder in module_folder.iterdir():
         if not lesson_folder.is_dir():
-            return
-        log.debug(f"Creating lesson {lesson_folder.name}")
+            continue
+        log.info(f"Creating lesson {lesson_folder.name}")
+
+        if "Chapter 10: Dynamic Structures (FOA only)" in module.name:
+            log.info(f"Skipping {module.name} entirely")
+            continue
+
         create_lesson(lesson_folder, session, module, existing_lessons=existing_lessons)
 
 
 def create_all_modules(session: edAPI):
-    lessons_and_modules = session.lesson().get_all()
-    existing_modules = {
-        module["name"]: module["id"] for module in lessons_and_modules["modules"]
-    }
+    lessons, modules = session.lesson().get_all()
+    existing_modules = defaultdict(list)
+    existing_lessons = defaultdict(list)
+    for module in modules:
+        existing_modules[module.name].append(module)
+    for lesson in lessons:
+        existing_lessons[lesson.title].append(lesson)
 
     # for every folder in output/grok_exercises
     for module_folder in Path("output/modules").iterdir():
         if not module_folder.is_dir:
             continue
 
-        create_module(module_folder, session, existing_modules)
-
-        break
+        create_module(module_folder, session, existing_modules, existing_lessons)
 
 
 def main():
@@ -924,9 +978,9 @@ def main():
         f"https://edstem.org/api", Path("api-token").read_text(), class_id="10611"
     )
 
-    # create_all_modules(session)
-    lesson: edAPI.lesson = session.lesson(31193).get()
-    create_challenge(Path("output/grok_exercises/Ex10.04-20"), session, lesson)
+    create_all_modules(session)
+    # lesson: edAPI.lesson = session.lesson(31193).get()
+    # create_challenge(Path("output/grok_exercises/Ex10.x1"), session, lesson)
 
 
 main()

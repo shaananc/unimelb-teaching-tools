@@ -25,3 +25,7 @@ class SlideDataClass:
     index: Optional[int | None]
     type: Optional[str | None]
     status: Optional[str | None]
+    active_status: Optional[str | None]
+    is_survey: Optional[bool | None]
+    passage: Optional[str | None]
+    mode: Optional[str | None]
