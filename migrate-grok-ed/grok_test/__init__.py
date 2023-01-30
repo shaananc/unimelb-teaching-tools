@@ -6,7 +6,12 @@ import yaml2pyclass
 class GrokTest(yaml2pyclass.CodeGenerator):
   @dataclasses.dataclass
   class OptionsClass:
+    floats: int
     image_ordering_mode: str
+    punctuation: bool
+    slice_end: int
+    slice_start: int
+    whitespace: bool
   
   label: str
   onerror: str
