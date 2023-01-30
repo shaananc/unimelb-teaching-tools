@@ -674,7 +674,7 @@ def create_challenge(folder: Path, session: edAPI, lesson: edAPI.Lesson):
     problem_yaml_path = folder / "problem.yaml"
     grok_problem = GrokProblem.from_yaml(str(problem_yaml_path))
 
-    slide = get_new_or_old_slide(session, lesson, grok_problem.title, "code")
+    slide = get_new_or_old_slide(session, lesson, grok_problem.title, "code")  # type: ignore
     slide.content = content
     slide.save()
 
@@ -696,7 +696,7 @@ def create_challenge(folder: Path, session: edAPI, lesson: edAPI.Lesson):
                 if not DRY_RUN:
                     subprocess.run(
                         [
-                            "rsync",
+                            "/opt/homebrew/bin/rsync",
                             "-r",
                             "--exclude",
                             "*.yaml",
@@ -705,7 +705,10 @@ def create_challenge(folder: Path, session: edAPI, lesson: edAPI.Lesson):
                         ],
                         check=True,
                     )
-                    subprocess.run(["rsync", str(makefile.absolute()), url], check=True)
+                    subprocess.run(
+                        ["/opt/homebrew/bin/rsync", str(makefile.absolute()), url],
+                        check=True,
+                    )
 
     # set the content to the contents of content.amber
     mychallenge.content = content
@@ -865,66 +868,65 @@ def create_lesson(
     create_slides_and_challenges(lesson_folder, session, lesson)
 
 
-def main():
+def create_module(
+    module_folder: Path, session: edAPI, existing_modules: Dict[str, int]
+):
+    # create a new lesson
+    module = session.module()
 
-    session = edAPI().new(
-        f"https://edstem.org/api", Path("api-token").read_text(), class_id="10611"
-    )
+    module_json_file = list(module_folder.glob("*.json"))
 
+    if len(module_json_file) == 0:
+        log.info(f"Found no json files in {module_folder}")
+        return
+
+    if len(module_json_file) != 1:
+        log.error(f"Found {len(module_json_file)} json files in {module_folder}")
+        sys.exit(1)
+    module_json_file = module_json_file[0]
+    module_json = json.loads(module_json_file.read_text())
+
+    module.name = module_json["title"]
+    if module.name in existing_modules:
+        log.info(f"Module {module.name} already exists, skipping")
+        module = session.module(existing_modules[module.name])
+    else:
+        log.info(f"Creating module {module.name}")
+        module.create()
+
+    # for each lesson folder in the module folder
+    for lesson_folder in module_folder.iterdir():
+        if not lesson_folder.is_dir():
+            return
+        log.debug(f"Creating lesson {lesson_folder.name}")
+        create_lesson(lesson_folder, session, module, existing_lessons=existing_lessons)
+
+
+def create_all_modules(session: edAPI):
     lessons_and_modules = session.lesson().get_all()
-    existing_lessons = lessons_and_modules["lessons"]
-    existing_modules = lessons_and_modules["modules"]
-    existing_lessons = {lesson["title"]: lesson["id"] for lesson in existing_lessons}
-    log.info(existing_modules)
-    existing_modules = {module["name"]: module["id"] for module in existing_modules}
-    log.info(existing_modules)
+    existing_modules = {
+        module["name"]: module["id"] for module in lessons_and_modules["modules"]
+    }
 
     # for every folder in output/grok_exercises
     for module_folder in Path("output/modules").iterdir():
         if not module_folder.is_dir:
             continue
 
-        # create a new lesson
-        module = session.module()
-
-        module_json_file = list(module_folder.glob("*.json"))
-
-        if len(module_json_file) == 0:
-            log.info(f"Found no json files in {module_folder}")
-            continue
-
-        if len(module_json_file) != 1:
-            log.error(f"Found {len(module_json_file)} json files in {module_folder}")
-            sys.exit(1)
-        module_json_file = module_json_file[0]
-        module_json = json.loads(module_json_file.read_text())
-
-        module.name = module_json["title"]
-        if module.name in existing_modules:
-            log.info(f"Module {module.name} already exists, skipping")
-            module = session.module(existing_modules[module.name])
-        else:
-            log.info(f"Creating module {module.name}")
-            module.create()
-
-        # for each lesson folder in the module folder
-        for lesson_folder in module_folder.iterdir():
-            if not lesson_folder.is_dir():
-                continue
-            log.debug(f"Creating lesson {lesson_folder.name}")
-            create_lesson(
-                lesson_folder, session, module, existing_lessons=existing_lessons
-            )
-            break
+        create_module(module_folder, session, existing_modules)
 
         break
 
-        # slide.save()
 
-        # log.debug(solution_text)
-        # log.info(mychallenge.json())
+def main():
 
-        break
+    session = edAPI().new(
+        f"https://edstem.org/api", Path("api-token").read_text(), class_id="10611"
+    )
+
+    # create_all_modules(session)
+    lesson: edAPI.lesson = session.lesson(31193).get()
+    create_challenge(Path("output/grok_exercises/Ex10.04-20"), session, lesson)
 
 
 main()
