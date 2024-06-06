@@ -36,7 +36,7 @@ def main():
     output_base = cwd / "output" / "grok_exercises"
     moved_files = 0
     # iterate through all the json files in output/grok_exercises and move them to a subdirectory based on the json key "title"
-    print(output_base)
+    logger.info(output_base)
     for file in output_base.glob("*.json"):
         logger.debug(f"Processing file: {file}")
 
@@ -50,18 +50,18 @@ def main():
         title = data["title"]
         slug = data["slug"]
         logging.debug(f"Obtained Slug and Title: {slug}, {title}")
-        if "unimelb-comp10002-2022-s2" not in slug:
+        if "unimelb-comp10001-2024-s2" not in slug:
             open("remainders.txt", "a").write(file_path + "\n")
             continue    
         
         # get the title from the json
         
-        if title.startswith("Ex"):
-            # get only the exercise number
-            title = title.split(":")[0]
-        else:
-            open("remainders.txt", "a").write(file_path + "\n")
-            continue
+        # if title.startswith("Ex"):
+        #     # get only the exercise number
+        #     title = title.split(":")[0]
+        # else:
+        #     open("remainders.txt", "a").write(file_path + "\n")
+        #     continue
 
 
 

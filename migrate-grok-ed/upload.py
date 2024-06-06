@@ -1,3 +1,4 @@
+import shutil
 import requests
 import json
 import rich
@@ -23,10 +24,12 @@ from pprint import pprint
 import subprocess
 import sys
 from collections import defaultdict
+from retrying import retry
 
 ## add logging with rich
 from rich.logging import RichHandler
 import logging
+import ipdb
 
 FORMAT = "%(message)s"
 logging.basicConfig(
@@ -35,12 +38,12 @@ logging.basicConfig(
 
 log = logging.getLogger("rich")
 
-ED_COURSE_ID: str = "10611"  # playground
+ED_COURSE_ID: str = "16527"  # playground
 # ED_COURSE_ID : str = '10507' -- real class
 
 DRY_RUN = False
 DRY_RUN_ALLOW_GETS = True
-ALLOW_RSYNC = False
+ALLOW_RSYNC = True
 
 
 session = requests.Session()
@@ -53,7 +56,7 @@ class edAPI:
     class_id: Optional[str]
     url_suffix: Optional[str]
 
-    def new(self, base_url="", token="", class_id=None, url_suffix=None):
+    def new(self, base_url="", token="", class_id=None, url_suffix=""):
         if not base_url:
             raise Exception("No base_url set!")
         if not token:
@@ -80,6 +83,7 @@ class edAPI:
             self.token = token
             self.class_id = class_id
 
+        @retry(wait_fixed=2000)
         def api_request(
             self,
             method,
@@ -172,7 +176,7 @@ class edAPI:
             class_name = self.__class__.__name__
             data = data[class_name.lower()]
 
-            obj = schema.load(data)
+            obj: edAPI.EDAPI_OBJ = schema.load(data)  # type: ignore
             obj.base_url = self.base_url
             obj.url_suffix = self.url_suffix
             obj.token = self.token
@@ -257,7 +261,7 @@ class edAPI:
         course_id: Optional[int | None]
         id: Optional[int | None]
 
-        def new(self, base_url=None, token=None, sid=None, class_id=None):
+        def new(self, base_url="", token="", sid=None, class_id=None):
             super().new(
                 base_url=base_url,
                 url_suffix=f"lessons/modules",
@@ -306,7 +310,7 @@ class edAPI:
             ffiles = {"slide": (None, json.dumps(self.dump()))}
             return self.api_request(method="PUT", files=ffiles)
 
-        def new(self, base_url=None, token=None, sid=None, class_id=None):
+        def new(self, base_url="", token="", sid=None, class_id=None):
             super().new(
                 base_url=base_url,
                 url_suffix="lessons/slides",
@@ -431,9 +435,7 @@ class edAPI:
         def create(self):
             return super().create(f"courses/{self.class_id}/{self.url_suffix}")
 
-        def new(
-            self, base_url=None, token=None, sid=None, url_suffix=None, class_id=None
-        ):
+        def new(self, base_url="", token="", sid=None, url_suffix=None, class_id=None):
             super().new(
                 base_url=base_url,
                 url_suffix="lessons",
@@ -574,7 +576,7 @@ class edAPI:
             self.__dict__.update(obj.__dict__)
             return self
 
-        def new(self, base_url=None, token=None, sid=None, class_id=None):
+        def new(self, base_url="", token="", sid=None, class_id=None):
             super().new(
                 base_url=base_url,
                 url_suffix="challenges",
@@ -700,6 +702,21 @@ class edAPI:
         )
 
 
+# a retrying rsync function
+@retry(wait_fixed=2000)
+def rsync(src: str, dest: str, args):
+    subprocess.run(
+        [
+            "rsync",
+            *args,
+            str(src),
+            dest,
+        ],
+        timeout=20,
+        check=True,
+    )
+
+
 def create_challenge(folder: Path, session: edAPI, lesson: edAPI.Lesson):
     # set content to the contents of content.amber
     content = (folder / "content.xml").read_text()
@@ -716,7 +733,7 @@ def create_challenge(folder: Path, session: edAPI, lesson: edAPI.Lesson):
     slide.save()
 
     if grok_problem.language == 20:
-        log.warn(
+        log.warning(
             f"Skipping slide {grok_problem.title} because it is a multiple choice quiz"
         )
         return
@@ -735,27 +752,17 @@ def create_challenge(folder: Path, session: edAPI, lesson: edAPI.Lesson):
         for wfile in (folder / grok_folder).glob("*"):
             if not wfile.name.endswith(".yaml"):
                 url = f"challenge.{mychallenge.id}.{ed_folder}@git.edstem.org:"
-                log.info(f"Uploading {wfile} to {url}")
                 if not DRY_RUN and ALLOW_RSYNC:
-                    subprocess.run(
-                        [
-                            "/opt/homebrew/bin/rsync",
-                            "-r",
-                            "--exclude",
-                            "*.yaml",
-                            str(wfile.absolute()),
-                            url,
-                        ],
-                        check=True,
-                    )
+                    log.info(f"Uploading {wfile} to {url}")
+                    rsync(str(wfile.absolute()), url, ["-r", "--exclude", "*.yaml"])
                     if makefile.exists():
-                        subprocess.run(
-                            ["/opt/homebrew/bin/rsync", str(makefile.absolute()), url],
-                            check=True,
-                        )
+                        rsync(str(makefile.absolute()), url, [])
                     else:
-                        log.warn(f"Makefile does not exist at {makefile}")
-
+                        log.warning(f"Makefile does not exist at {makefile}")
+                else:
+                    log.warning(
+                        "Not uploading files because either DRY_RUN is set or ALLOW_RSYNC is off"
+                    )
     # set the content to the contents of content.amber
     mychallenge.content = content
     mychallenge.explanation = solution_text
@@ -764,6 +771,13 @@ def create_challenge(folder: Path, session: edAPI, lesson: edAPI.Lesson):
     mychallenge.settings.check_command = "make run"  # type: ignore
     mychallenge.tickets.run_standard.build_command = "make all"  # type: ignore
     mychallenge.tickets.run_standard.run_command = "make run"  # type: ignore
+
+    if not mychallenge.tickets:
+        mychallenge.tickets = challenge.Tickets()
+    if not mychallenge.tickets.mark_standard:
+        mychallenge.tickets.mark_standard = challenge.Mark()
+    if not mychallenge.tickets.mark_standard.run_limit:
+        mychallenge.tickets.mark_standard.run_limit = challenge.MarkCustomRunLimit()
 
     mychallenge.tickets.mark_standard.easy = False  # penalize whitespace infractions
     mychallenge.tickets.mark_standard.run_limit.pty = False  # make the output match up with the terminal output without having to interleave
@@ -792,7 +806,12 @@ def create_challenge(folder: Path, session: edAPI, lesson: edAPI.Lesson):
 
         testcase.name = grok_test.label
         testcase.run_command = "./program"
-        testcase.stdin_path = str(relative_dir / "stdin")
+        if (folder / "tests" / relative_dir / "stdin").exists():
+            testcase.stdin_path = str(relative_dir / "stdin")
+        else:
+            log.warning(f"stdin does not exist for {grok_test.label}")
+            testcase.stdin_path = str("")
+
         check = challenge.Check(
             None,
             None,
@@ -890,7 +909,7 @@ def create_lesson(
     existing_lessons,
 ):
     # check if a lesson of that name already exists under that module
-    lesson: edAPI.Lesson | None = None
+    lesson: edAPI.Lesson = session.lesson()
     still_not_seen = True
     if lesson_folder.name in existing_lessons:
         # check all the lessons with that name to see if they are under this module
@@ -898,13 +917,12 @@ def create_lesson(
             # lesson = session.lesson(l).get()
             if l.module_id == module.id:
                 lesson = l
-                log.warn(
+                log.warning(
                     f"Lesson {lesson_folder.name} already exists under {module.name}"
                 )
                 still_not_seen = False
 
     if still_not_seen == True:
-        lesson = session.lesson()
         lesson.title = lesson_folder.name
         lesson.create()
         lesson.type = "c"
@@ -947,9 +965,9 @@ def create_module(
             continue
         log.info(f"Creating lesson {lesson_folder.name}")
 
-        if "Chapter 10: Dynamic Structures (FOA only)" in module.name:
-            log.info(f"Skipping {module.name} entirely")
-            continue
+        # if "Chapter 10: Dynamic Structures (FOA only)" in module.name:
+        #     log.info(f"Skipping {module.name} entirely")
+        #     continue
 
         create_lesson(lesson_folder, session, module, existing_lessons=existing_lessons)
 

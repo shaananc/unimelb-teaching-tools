@@ -1,0 +1,189 @@
+{'id': 75698, 'original_id': None, 'course_id': 10611, 'scaffold_hash': 'cce54aa84ee4ebb4489d858929adfa91f2557c25c29c783656ee126f49d8527e', 'check_hash':                                                                upload.py: 93
+'2624bc8993901e14c3f5ffaf852d6f4d773b33f92ab6d95edaf874cdb8ba961d', 'solution_hash': 'bb6a169c18e3d40e4d8fad10f1231ab83a071eec5ddaa945571282aa49bd2f2f', 'testbase_hash':                                                            
+'3bbfbe26528a7121220dce6782b1dfc69430dd3422aa473f9ec26549d296002c', 'kind': 'lesson', 'type': 'code', 'title': 'SampleSlide', 'content': '<document version="2.0"><paragraph>This is a                                               
+description</paragraph></document>', 'outline': '', 'session': '', 'category': '', 'language': '', 'difficulty': '', 'explanation': '<document version="2.0"><paragraph>This is a great                                              
+explanation!</paragraph></document>', 'password': '', 'number': -1, 'points': 0, 'is_active': True, 'manual_solution_control': False, 'is_feedback_visible': False, 'is_hidden': False, 'requires_lti_link': False,                  
+'is_exam': False, 'exam_visibility': 'any', 'exam_visibility_alternate_hour': False, 'sequential_completion': False, 'unavailable_after_completion': False, 'lab_category': '', 'lab_name_regex': '', 'lab_reset':                   
+False, 'tutorial_regex': '', 'tickets': {'connect': {'region': '', 'user': {'id': 0, 'name': ''
+            }, 'course': {'course_id': 0, 'course_name': ''
+            }, 'no_quota': False, 'staff_tag': False, 'preset': '', 'empty': False,                
+'temporary': False, 'readonly': False, 'terminal': False, 'web': False, 'web_id': '', 'box_limit': {'pty_size': {'rows': 0, 'cols': 0
+                }, 'image': '', 'networking': False, 'internet': False, 'kvm': False,                           
+'autospawn_vnc': False, 'vnc_width': 0, 'vnc_height': 0
+            }, 'from': None, 'inactivity_timeout': 0, 'workspace': {'wid': '', 'hash': ''
+            }, 'services': [], 'workspace_settings': {'rstudio_layout': ''
+            }
+        }, 'run_unit': {'region': '', 'user': {'id': 0, 'name': ''
+            }, 'course': {'course_id': 0, 'course_name': ''
+            }, 'no_quota': False, 'staff_tag': False, 'preset': '', 'box_limit': {'pty_size': {'rows': 0, 'cols': 0
+                }, 'image': '',                     
+'networking': False, 'internet': False, 'kvm': False, 'autospawn_vnc': False, 'vnc_width': 0, 'vnc_height': 0
+            }, 'run_limit': {'pty_size': {'rows': 0, 'cols': 0
+                }
+            }, 'build_limit': {'pty_size': {'rows': 0, 'cols': 0
+                }
+            },              
+'run_command': '', 'test_command': '', 'build_command': '', 'extra_paths': None, 'run': {'wid': '', 'hash': ''
+            }, 'attempt': {'wid': '', 'hash': ''
+            }, 'overlay': False, 'process_file_events': False, 'dump_files':                   
+False, 'services': []
+        }, 'mark_unit': {'region': '', 'user': {'id': 0, 'name': ''
+            }, 'course': {'course_id': 0, 'course_name': ''
+            }, 'no_quota': False, 'staff_tag': False, 'type': '', 'preset': '', 'box_limit': {'pty_size': {'rows': 0, 'cols': 0
+                }, 'image': '', 'networking': False, 'internet': False, 'kvm': False, 'autospawn_vnc': False, 'vnc_width': 0, 'vnc_height': 0
+            }, 'run_limit': {'pty_size': {'rows': 0, 'cols': 0
+                }
+            },                 
+'build_limit': {'pty_size': {'rows': 0, 'cols': 0
+                }
+            }, 'build_command': 'make scaffold.c', 'mark': {'wid': '', 'hash': ''
+            }, 'attempt': {'wid': '', 'hash': ''
+            }, 'solution': {'wid': '', 'hash': ''
+            }, 'testcase_path': '',              
+'additional_classpath': '', 'services': []
+        }, 'run_custom': {'region': '', 'user': {'id': 0, 'name': ''
+            }, 'course': {'course_id': 0, 'course_name': ''
+            }, 'no_quota': False, 'staff_tag': False, 'preset': '',                         
+'box_limit': {'pty_size': {'rows': 0, 'cols': 0
+                }, 'image': '', 'networking': False, 'internet': False, 'kvm': False, 'autospawn_vnc': False, 'vnc_width': 0, 'vnc_height': 0
+            }, 'run_limit': {'pty_size': {'rows': 0,                 
+'cols': 0
+                }
+            }, 'build_limit': {'pty_size': {'rows': 0, 'cols': 0
+                }
+            }, 'run_command': '', 'test_command': '', 'build_command': '', 'extra_paths': None, 'run': {'wid': '', 'hash': ''
+            }, 'attempt': {'wid': '', 'hash': ''
+            },               
+'overlay': False, 'process_file_events': False, 'dump_files': False, 'services': []
+        }, 'mark_custom': {'region': '', 'user': {'id': 0, 'name': ''
+            }, 'course': {'course_id': 0, 'course_name': ''
+            }, 'no_quota': False,                 
+'staff_tag': False, 'preset': '', 'box_limit': {'pty_size': {'rows': 0, 'cols': 0
+                }, 'image': '', 'networking': False, 'internet': False, 'kvm': False, 'autospawn_vnc': False, 'vnc_width': 0, 'vnc_height': 0
+            },                     
+'run_limit': {'pty_size': {'rows': 0, 'cols': 0
+                }
+            }, 'build_limit': {'pty_size': {'rows': 0, 'cols': 0
+                }
+            }, 'mark': {'wid': '', 'hash': ''
+            }, 'attempt': {'wid': '', 'hash': ''
+            }, 'solution': {'wid': '', 'hash': ''
+            },                    
+'files_limit': {'pty_size': {'rows': 0, 'cols': 0
+                }, 'image': '', 'networking': False, 'internet': False, 'kvm': False, 'autospawn_vnc': False, 'vnc_width': 0, 'vnc_height': 0
+            }, 'student_files': {'wid': '', 'hash':                
+''
+            }, 'staff_files': {'wid': '', 'hash': ''
+            }, 'prev_student_files': {'wid': '', 'hash': ''
+            }, 'prev_staff_files': {'wid': '', 'hash': ''
+            }, 'build_command': 'make scaffold.c', 'run_command': '', 'services': []
+        },                     
+'run_standard': {'region': '', 'user': {'id': 0, 'name': ''
+            }, 'course': {'course_id': 0, 'course_name': ''
+            }, 'no_quota': False, 'staff_tag': False, 'preset': '', 'box_limit': {'pty_size': {'rows': 0, 'cols': 0
+                },                  
+'image': '', 'networking': False, 'internet': False, 'kvm': False, 'autospawn_vnc': False, 'vnc_width': 0, 'vnc_height': 0
+            }, 'run_limit': {'pty': True, 'pty_size': {'rows': 0, 'cols': 0
+                }
+            }, 'build_limit': {'pty_size': {'rows': 0, 'cols': 0
+                }
+            }, 'run_command': './a.out', 'test_command': '', 'build_command': 'make scaffold.c', 'extra_paths': None, 'run': {'wid': '', 'hash': ''
+            }, 'attempt': {'wid': '', 'hash': ''
+            }, 'overlay': False,                
+'process_file_events': False, 'dump_files': False, 'services': []
+        }, 'mark_standard': {'region': '', 'user': {'id': 0, 'name': ''
+            }, 'course': {'course_id': 0, 'course_name': ''
+            }, 'no_quota': False, 'staff_tag': False,             
+'preset': '', 'box_limit': {'pty_size': {'rows': 0, 'cols': 0
+                }, 'image': '', 'networking': False, 'internet': False, 'kvm': False, 'autospawn_vnc': False, 'vnc_width': 0, 'vnc_height': 0
+            }, 'build_limit': {'pty_size': {'rows': 0, 'cols': 0
+                }
+            }, 'build_command': 'make scaffold.c', 'run_limit': {'pty': True, 'pty_size': {'rows': 0, 'cols': 0
+                }
+            }, 'run_command': '', 'mark': {'wid': '', 'hash': ''
+            }, 'attempt': {'wid': '', 'hash': ''
+            },                 
+'solution': {'wid': '', 'hash': ''
+            }, 'files_limit': {'pty_size': {'rows': 0, 'cols': 0
+                }, 'image': '', 'networking': False, 'internet': False, 'kvm': False, 'autospawn_vnc': False, 'vnc_width': 0, 'vnc_height': 0
+            },                
+'student_files': {'wid': '', 'hash': ''
+            }, 'staff_files': {'wid': '', 'hash': ''
+            }, 'prev_student_files': {'wid': '', 'hash': ''
+            }, 'prev_staff_files': {'wid': '', 'hash': ''
+            }, 'mark_all': False, 'testcases': [
+                {'name':              
+'a test', 'description': '', 'hidden': False, 'private': False, 'score': 0, 'max_score': 0, 'skip': False, 'run_limit': {'pty_size': {'rows': 0, 'cols': 0
+                        }
+                    }, 'run_command': './a.out', 'stdin_path': 'inputfile',                   
+'extra_paths': None, 'checks': [
+                        {'name': '', 'type': 'check_diff', 'source': {'type': 'source_mixed', 'file': ''
+                            }, 'transforms': [], 'expect_path': 'outputfile', 'acceptable_line_error_rate': 0,                                   
+'acceptable_char_error_rate': 0, 'acceptable_line_errors': 0, 'acceptable_char_errors': 0, 'regex_match': '', 'run_limit': {'pty_size': {'rows': 0, 'cols': 0
+                                }
+                            }, 'run_command': '', 'markdown': False
+                        }
+                    ], 'output_files': []
+                }
+            ], 'overlay': False, 'easy': True, 'services': []
+        }, 'run_postgres': {'region': '', 'user': {'id': 0, 'name': ''
+            }, 'course': {'course_id': 0, 'course_name': ''
+            }, 'no_quota': False, 'staff_tag': False, 'type': '',               
+'preset': '', 'server_box_limit': {'pty_size': {'rows': 0, 'cols': 0
+                }, 'image': '', 'networking': False, 'internet': False, 'kvm': False, 'autospawn_vnc': False, 'vnc_width': 0, 'vnc_height': 0
+            }, 'box_limit': {'pty_size': {'rows': 0, 'cols': 0
+                }, 'image': '', 'networking': False, 'internet': False, 'kvm': False, 'autospawn_vnc': False, 'vnc_width': 0, 'vnc_height': 0
+            }, 'run': {'wid': '', 'hash': ''
+            }, 'attempt': {'wid': '',             
+'hash': ''
+            }, 'schema_path': '', 'attempt_path': '', 'psql': False
+        }, 'mark_postgres': {'region': '', 'user': {'id': 0, 'name': ''
+            }, 'course': {'course_id': 0, 'course_name': ''
+            }, 'no_quota': False, 'staff_tag': False,             
+'preset': '', 'server_box_limit': {'pty_size': {'rows': 0, 'cols': 0
+                }, 'image': '', 'networking': False, 'internet': False, 'kvm': False, 'autospawn_vnc': False, 'vnc_width': 0, 'vnc_height': 0
+            }, 'box_limit': {'pty_size': {'rows': 0, 'cols': 0
+                }, 'image': '', 'networking': False, 'internet': False, 'kvm': False, 'autospawn_vnc': False, 'vnc_width': 0, 'vnc_height': 0
+            }, 'mark': {'wid': '', 'hash': ''
+            }, 'attempt': {'wid':                
+'', 'hash': ''
+            }, 'solution': {'wid': '', 'hash': ''
+            }, 'mark_all': False, 'attempt_path': '', 'solution_path': '', 'type': '', 'check_select': False, 'check_database': False, 'ignore_column_names': False,                          
+'ignore_column_order': False, 'ignore_row_order': False, 'testcases': []
+        }, 'mark_web': {'region': '', 'user': {'id': 0, 'name': ''
+            }, 'course': {'course_id': 0, 'course_name': ''
+            }, 'no_quota': False, 'staff_tag':                  
+False, 'preset': '', 'box_limit': {'pty_size': {'rows': 0, 'cols': 0
+                }, 'image': '', 'networking': False, 'internet': False, 'kvm': False, 'autospawn_vnc': False, 'vnc_width': 0, 'vnc_height': 0
+            }, 'screen_width': 0,               
+'screen_height': 0, 'preload_js_path': [], 'main_html_path': '', 'main_js_path': '', 'mark': {'wid': '', 'hash': ''
+            }, 'attempt': {'wid': '', 'hash': ''
+            }, 'solution': {'wid': '', 'hash': ''
+            }, 'testcases': []
+        },                     
+'mark_jupyter': {'region': '', 'user': {'id': 0, 'name': ''
+            }, 'course': {'course_id': 0, 'course_name': ''
+            }, 'no_quota': False, 'staff_tag': False, 'preset': '', 'box_limit': {'pty_size': {'rows': 0, 'cols': 0
+                },                  
+'image': '', 'networking': False, 'internet': False, 'kvm': False, 'autospawn_vnc': False, 'vnc_width': 0, 'vnc_height': 0
+            }, 'run_limit': {'pty_size': {'rows': 0, 'cols': 0
+                }
+            }, 'build_limit': {'pty_size': {'rows': 0,              
+'cols': 0
+                }
+            }, 'build_command': '', 'mark': {'wid': '', 'hash': ''
+            }, 'attempt': {'wid': '', 'hash': ''
+            }, 'solution': {'wid': '', 'hash': ''
+            }, 'testcase_path': '', 'jupyter_notebook_path': '', 'services': []
+        }
+    },                      
+'features': {'run': True, 'check': True, 'mark': True, 'connect': True, 'network': False, 'terminal': True, 'internet': False, 'treeview': False, 'treeview_initially_open': False, 'feedback': True,                                
+'manual_completion': False, 'anonymous_submissions': False, 'arguments': True, 'confirm_submit': False, 'run_before_submit': False, 'full': True, 'git_submission': False, 'editor': True, 'remote_desktop': False,                  
+'intermediate_files': False
+    }, 'settings': {'chrome': '', 'points': {'loss_threshold': 0, 'loss_every': 5, 'loss_amount': 2
+        }, 'per_testcase_scores': False, 'max_mark': '', 'criteria': [], 'run_command': './a.out',                 
+'build_command': 'make scaffold.c', 'check_command': './a.out', 'terminal_command': '', 'only_git_submission': False, 'playground': False, 'max_submissions_with_intermediate_files': 0, 'services': [], 'passback': {'scoring_mode': '', 'max_automatic_score': 0
+        }
+    }, 'due_at': '2023-03-31T15: 00: 00+11: 00', 'created_at': '2023-01-27T14: 47: 51.414567+11: 00', 'updated_at': '2023-01-27T17: 05: 13.908817+11: 00', 'score': 0, 'status':                    
+'unattempted'
+}

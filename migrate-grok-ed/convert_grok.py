@@ -1,7 +1,7 @@
 import json
 import argparse
 import glob
-from pathlib import Path
+from pathlib import Path, PosixPath
 from datetime import datetime, timezone
 import re
 import os
@@ -184,7 +184,7 @@ class Problem:
             self.internal_json = internal_json
         self.ex = ex
         if output_dir is None:
-            output_dir = Path(ex)  # Path(ex.replace('.', '-'))
+            output_dir = Path("output/grok_exercises") / ex  # Ensure correct path
         self.wd: Path = output_dir
         self.wd.mkdir(parents=True, exist_ok=True)
         self.load_json()
@@ -200,6 +200,7 @@ class Problem:
             self.dump_yaml()
         if not (output_dir / "tests").is_dir():
             self.dump_tests()
+
 
     def load(self):
         """Load JSON, dumps to solutions, content, yaml, workspaces, etc."""
@@ -310,6 +311,8 @@ class Problem:
     # --- Tests
 
     def dump_tests(self):
+        import ipdb
+        ipdb.set_trace()
         wd = self.wd / "tests"
 
         rm_rf(wd)
@@ -386,7 +389,9 @@ class Problem:
 
     @property
     def json_path(self):
-        json_paths = glob.glob(f"{self.wd}/*.json")
+        jpath = Path(f"output/grok_exercises/{self.ex}/*.json")  # Use self.ex directly
+        print(jpath.absolute())
+        json_paths = glob.glob(str(jpath))
         assert len(json_paths) == 1
         path = Path(json_paths[0])
         self.slug = path.stem
@@ -427,7 +432,7 @@ class Problem:
             print("Backed up to", fname)
 
     def load_json(self):
-        if self.internal_json is not None:
+        if hasattr(self,"internal_json") and self.internal_json is not None:
             self.obj = load_problem_json(self.internal_json, as_file=False)
         else:
             self.obj = load_problem_json(self.json_path)
@@ -487,7 +492,8 @@ def main():
 
     if len(args.names) == 0:
         print("Using all problems in directory")
-        problems = [Path(p) for p in glob.glob("Ex*")]
+        problems = [Path(p) for p in os.listdir("output/grok_exercises")]
+        print(problems)
     else:
         problems = args.names
 
@@ -498,10 +504,10 @@ def main():
             print("Diffing problem", problem_name)
             problem.load_all()
         elif args.w:
-            print(fail("Dumping problem " + problem_name + " if testing succeeds"))
+            print(fail("Dumping problem " + str(problem_name) + " if testing succeeds"))
             problem.dump()
         elif args.f:
-            print(fail("Dumping problem " + problem_name))
+            print(fail("Dumping problem " + str(problem_name)))
             problem.dump(force=True)
         elif args.r:
             print("Loading problem", problem_name)

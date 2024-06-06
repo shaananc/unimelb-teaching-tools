@@ -23,22 +23,70 @@ import json
 import convert_grok
 import preprocess_markdown
 from cachier import cachier
+import requests.cookies
+import rich
+import configparser
 
 
-sys.path.insert(0, str(Path(os.path.realpath(__file__)).parent.parent))
-from utils import (
-    get_truthy_config_option,
-    logger,
-    cache_expiry,
-)  # pylint:disable=wrong-import-position
+logger = logging.getLogger(__name__)
+FORMAT = "%(message)s"
+rich_handler = RichHandler(markup=True)
+file_handler = logging.FileHandler(filename="unimelblib.log")
+file_handler.formatter = logging.Formatter(
+    "%(asctime)s %(name)-12s %(levelname)-8s %(message)s", datefmt="%d-%b-%y %H:%M:%S"
+)
 
+logging.basicConfig(
+    level="INFO",
+    format=FORMAT,
+    datefmt="[%X]",
+    handlers=[rich_handler, file_handler],
+)
+
+
+rich.traceback.install()
+
+logger.info("Reading Configuration File")
+config = configparser.ConfigParser()
+CONFIG_FILENAME = "config.ini"
+CONFIG_GLOBAL_KEY = "GLOBAL"
+LOCAL_CONFIG_PATH = Path(Path(os.path.realpath(__file__)).parent / CONFIG_FILENAME)
+result = []
+
+if LOCAL_CONFIG_PATH.exists():
+    result = config.read(LOCAL_CONFIG_PATH)
+elif Path(CONFIG_FILENAME).exists():
+    result = config.read(CONFIG_FILENAME)
+else:
+    raise FileNotFoundError(
+        "Could not find the configuration file 'config.ini' in either the current working directory or the script directory"
+    )
+
+assert result
+logger.info("Configuration File Successfully Read.")
+
+
+if "log_level" in config[CONFIG_GLOBAL_KEY]:
+    level = config[CONFIG_GLOBAL_KEY]["log_level"]
+    logger.info(f"Setting log level to {level}") 
+    logger.setLevel(level)
+
+
+global_section = config[CONFIG_GLOBAL_KEY]
+cache_expiry = int(global_section.get("cache_expiry", fallback="0"))
+
+def get_truthy_config_option(option: str, section: str = CONFIG_GLOBAL_KEY) -> str:
+    r = config.get(section, option=option, fallback=None)
+    if not r:
+        raise ValueError(f"Needed configuration value '{option}' not set")
+    return r
 
 MODULE_CONFIG_SECTION = "GROK"
 course_slug = get_truthy_config_option("grok_course_slug", MODULE_CONFIG_SECTION)
 # problem_suffix = get_truthy_config_option("grok_problem_suffix", MODULE_CONFIG_SECTION)
 
 grok_url = "https://groklearning.com"
-base_search_url = f"{grok_url}/admin/author-problems/?q_authoring_state=3&q_language=&q=comp10002-2022-s2"
+base_search_url = f"{grok_url}/admin/author-problems/?q_authoring_state=3&q_language=&q=comp10001-2024-s2"
 
 
 full_search_url = f"{base_search_url}q={course_slug}"
@@ -46,7 +94,7 @@ full_search_url = f"{base_search_url}q={course_slug}"
 FORMAT = "%(message)s"
 logging.basicConfig(format=FORMAT, datefmt="[%X]", handlers=[RichHandler()])
 
-DRY_RUN = True
+DRY_RUN = False
 
 logger = logging.getLogger(__name__)
 log_level = get_truthy_config_option(
@@ -83,7 +131,10 @@ def get_session_token():
         wait.until(
             lambda driver: driver.find_elements_by_class_name("account-header-left")
         )
-        session_token = driver.get_cookie("grok_session")["value"]
+        cookie = driver.get_cookie("grok_session")
+        if not cookie:
+            raise Exception("Could not find grok_session cookie")
+        session_token = cookie.get["value"]
         get_jar().set("grok_session", session_token, domain=".groklearning.com")
         logger.info(f"session_token={session_token}")
         return session_token
@@ -128,7 +179,7 @@ def get_problems(session: FuturesSession):
 @cachier(stale_after=datetime.timedelta(days=3))
 def get_modules(session: FuturesSession):
     search_url = (
-        f"{grok_url}/admin/author-modules/?q_authoring_state=&q=comp10002-2022-s2"
+        f"{grok_url}/admin/author-modules/?q_authoring_state=&q=comp10001-2024-s2"
     )
     hrefs = []
     while True:
@@ -334,7 +385,7 @@ def export_module(module, modules_dir: Path):
     module_title = data["title"]
     module_slug = data["slug"]
     logger.info(f"Processing Module {str(module)}: {module_title}, {module_slug}")
-    if "2022-s2" not in module_slug:
+    if "2024-s2" not in module_slug:
         logger.debug("skipping module, incorrect slug")
         return
 

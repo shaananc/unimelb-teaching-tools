@@ -1,0 +1,37 @@
+{
+  "lesson": {
+    "available_at": "2023-01-28T03:00:00.000Z",
+    "due_at": "2023-03-31T04:00:00.000Z",
+    "id": 30834,
+    "index": 1,
+    "is_hidden": true,
+    "is_timed": false,
+    "is_unlisted": false,
+    "late_submissions": true,
+    "locked_at": null,
+    "module_id": 6719,
+    "openable": true,
+    "outline": "",
+    "password": "",
+    "prerequisites": [],
+    "release_challenge_feedback": false,
+    "release_challenge_feedback_while_active": false,
+    "release_challenge_solutions": false,
+    "release_challenge_solutions_while_active": false,
+    "release_quiz_correctness_only": false,
+    "release_quiz_solutions": true,
+    "reopen_submissions": false,
+    "settings": {
+      "quiz_active_status": "active",
+      "quiz_mode": "multiple-attempts",
+      "quiz_question_number_style": ""
+    },
+    "solutions_at": "2023-04-01T03:00:00.000Z",
+    "state": "scheduled",
+    "timer_duration": 60,
+    "timer_expiration_access": false,
+    "title": "Exercise",
+    "tutorial_regex": "",
+    "type": "general"
+  }
+}

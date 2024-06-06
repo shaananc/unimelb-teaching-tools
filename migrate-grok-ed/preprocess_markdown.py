@@ -48,6 +48,9 @@ def process_file(f: Path):
         "",
     )
 
+    text = text.replace("Grok", "Ed")
+    text = text.replace("grok", "Ed")
+
     text = re.sub(r"\s*```", "\n```", text, flags=re.MULTILINE)
 
     text = text.replace("```norun", "```")
