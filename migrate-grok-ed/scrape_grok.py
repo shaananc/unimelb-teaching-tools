@@ -68,12 +68,13 @@ logger.info("Configuration File Successfully Read.")
 
 if "log_level" in config[CONFIG_GLOBAL_KEY]:
     level = config[CONFIG_GLOBAL_KEY]["log_level"]
-    logger.info(f"Setting log level to {level}") 
+    logger.info(f"Setting log level to {level}")
     logger.setLevel(level)
 
 
 global_section = config[CONFIG_GLOBAL_KEY]
 cache_expiry = int(global_section.get("cache_expiry", fallback="0"))
+
 
 def get_truthy_config_option(option: str, section: str = CONFIG_GLOBAL_KEY) -> str:
     r = config.get(section, option=option, fallback=None)
@@ -81,12 +82,15 @@ def get_truthy_config_option(option: str, section: str = CONFIG_GLOBAL_KEY) -> s
         raise ValueError(f"Needed configuration value '{option}' not set")
     return r
 
+
 MODULE_CONFIG_SECTION = "GROK"
 course_slug = get_truthy_config_option("grok_course_slug", MODULE_CONFIG_SECTION)
 # problem_suffix = get_truthy_config_option("grok_problem_suffix", MODULE_CONFIG_SECTION)
 
 grok_url = "https://groklearning.com"
-base_search_url = f"{grok_url}/admin/author-problems/?q_authoring_state=3&q_language=&q=comp10001-2024-s2"
+base_search_url = (
+    f"{grok_url}/admin/author-problems/?q_authoring_state=3&q_language=&q={course_slug}"
+)
 
 
 full_search_url = f"{base_search_url}q={course_slug}"
