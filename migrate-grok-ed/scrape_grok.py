@@ -1,4 +1,5 @@
 from json import JSONDecodeError
+from typing import List, Dict, Callable, Any
 
 """
 This script scrapes problems and modules from the Grok Learning platform and exports them to a local directory.
@@ -18,50 +19,47 @@ Functions:
     - get_truthy_config_option(option: str, section: str = CONFIG_GLOBAL_KEY) -> str:
         Retrieves a configuration option and ensures it is set.
 
-    - attempt_auth(f):
+    - attempt_auth(f: Callable) -> Callable:
         Decorator to handle authentication and retry on HTTP 401 errors.
 
-    - get_session_token():
+    - get_session_token() -> str:
         Launches a browser to log in to Grok Learning and retrieves the session token.
 
-    - get_jar():
+    - get_jar() -> requests.cookies.RequestsCookieJar:
         Returns a cookie jar for storing session cookies.
 
-    - get_problems(session: FuturesSession):
+    - get_problems(session: FuturesSession) -> List[str]:
         Retrieves a list of problems from Grok Learning.
 
-    - get_modules(session: FuturesSession):
+    - get_modules(session: FuturesSession) -> List[str]:
         Retrieves a list of modules from Grok Learning.
 
-    - export_problem(problem):
+    - export_problem(problem: str) -> None:
         Exports a problem from Grok Learning to a local directory.
 
-    - slow_tqdm(f, arg):
+    - slow_tqdm(f: Callable, arg: List[Any]) -> None:
         Wraps a function with a progress bar and adds a delay to prevent rate limiting.
 
-    - main():
+    - main() -> None:
         Main function to orchestrate the scraping and exporting process.
 
-    - generate_problem_id_map():
+    - generate_problem_id_map() -> Dict[str, str]:
         Generates a map of problem IDs to problem slugs.
 
-    - export_slide(slides, slide_dir: Path):
+    - export_slide(slides: List[Dict[str, Any]], slide_dir: Path) -> None:
         Exports slides from a module to a local directory.
 
-    - export_module(module, modules_dir: Path):
+    - export_module(module: str, modules_dir: Path) -> None:
         Exports a module from Grok Learning to a local directory.
 
 Usage:
     Run the script to scrape problems and modules from Grok Learning and export them to the "output" directory.
 """
-import shutil
 import requests
-from rich import print
 from cachier import cachier
 import datetime
 import logging
 import os
-import concurrent.futures
 import time
 import selenium.webdriver as webdriver
 import selenium.webdriver.support.ui as ui
@@ -73,7 +71,6 @@ from rich.logging import RichHandler
 import bs4
 import sys
 from pathlib import Path
-import markdown
 import json
 import convert_grok
 import preprocess_markdown
@@ -174,7 +171,7 @@ if log_level:
     logger.setLevel(log_level)
 
 
-def attempt_auth(f):
+def attempt_auth(f: Callable) -> Callable:
     """
     Decorator to handle authentication and retry on HTTP 401 errors.
 
@@ -198,7 +195,7 @@ def attempt_auth(f):
     return inner
 
 
-def get_session_token():
+def get_session_token() -> str:
     """
     Launches a browser to log in to Grok Learning and retrieves the session token.
 
@@ -225,7 +222,7 @@ def get_session_token():
         return session_token
 
 
-def get_jar():
+def get_jar() -> requests.cookies.RequestsCookieJar:
     """
     Returns a cookie jar for storing session cookies.
 
@@ -242,7 +239,7 @@ get_jar.jar = None
 
 @attempt_auth
 @cachier(stale_after=datetime.timedelta(days=3))
-def get_problems(session: FuturesSession):
+def get_problems(session: FuturesSession) -> List[str]:
     """
     Retrieves a list of problems from Grok Learning.
 
@@ -277,7 +274,7 @@ def get_problems(session: FuturesSession):
 
 @attempt_auth
 @cachier(stale_after=datetime.timedelta(days=3))
-def get_modules(session: FuturesSession):
+def get_modules(session: FuturesSession) -> List[str]:
     """
     Retrieves a list of modules from Grok Learning.
 
@@ -312,7 +309,7 @@ def get_modules(session: FuturesSession):
     return hrefs
 
 
-def export_problem(problem):
+def export_problem(problem: str) -> None:
     """
     Exports a problem from Grok Learning to a local directory.
 
@@ -350,19 +347,19 @@ def export_problem(problem):
                 title = title.split(":")[0]
             else:
                 return
-            problem = convert_grok.Problem(
+            problem_obj: convert_grok.Problem = convert_grok.Problem(
                 title.replace("Exercise ", "Ex"),
                 obj,
                 course_dir / title.replace("Exercise ", "Ex"),
             )
-            problem.load()
+            problem_obj.load()
 
-            content_file = problem.wd / "content.md"
+            content_file = problem_obj.wd / "content.md"
             if content_file.exists():
                 preprocess_markdown.process_file(content_file)
                 preprocess_markdown.unescape_file(content_file.with_suffix(".xml"))
 
-            content_file = problem.wd / "solution_notes.md"
+            content_file = problem_obj.wd / "solution_notes.md"
             if content_file.exists():
                 preprocess_markdown.process_file(content_file)
                 preprocess_markdown.unescape_file(content_file.with_suffix(".xml"))
@@ -373,7 +370,7 @@ def export_problem(problem):
         )
 
 
-def slow_tqdm(f, arg):
+def slow_tqdm(f: Callable, arg: List[Any]) -> None:
     """
     Wraps a function with a progress bar and adds a delay to prevent rate limiting.
 
@@ -388,7 +385,7 @@ def slow_tqdm(f, arg):
                 time.sleep(0.3)  # add delay to prevent rate limiting by Grok servers
 
 
-def main():
+def main() -> None:
     """
     Main function to orchestrate the scraping and exporting process.
     """
@@ -425,7 +422,7 @@ def main():
     slow_tqdm(export_module, modules)
 
 
-def generate_problem_id_map():
+def generate_problem_id_map() -> Dict[str, str]:
     """
     Generates a map of problem IDs to problem slugs.
 
@@ -454,7 +451,7 @@ def generate_problem_id_map():
 generate_problem_id_map.problem_id_map = {}
 
 
-def export_slide(slides, slide_dir: Path):
+def export_slide(slides: List[Dict[str, Any]], slide_dir: Path) -> None:
     """
     Exports slides from a module to a local directory.
 
@@ -489,7 +486,7 @@ def export_slide(slides, slide_dir: Path):
             raise ValueError(f"Unknown slide type {slide['type']}")
 
 
-def export_module(module, modules_dir: Path):
+def export_module(module: str, modules_dir: Path) -> None:
     """
     Exports a module from Grok Learning to a local directory.
 
