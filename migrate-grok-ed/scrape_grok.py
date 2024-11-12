@@ -524,11 +524,11 @@ def export_module(module: str, modules_dir: Path) -> None:
     module_slug = data["slug"]
     logger.info(f"Processing Module {str(module)}: {module_title}, {module_slug}")
     if "2024-s2" not in module_slug:
-        logger.debug("skipping module, incorrect slug")
+        logger.info("skipping module, incorrect slug")
         return
 
     if "assignment" in module_slug or "playground" in module_slug:
-        logger.debug("skipping module, assignment")
+        logger.info("skipping module, assignment")
         return
 
     for submodule in data["content"]:
