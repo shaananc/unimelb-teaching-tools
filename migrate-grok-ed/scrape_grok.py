@@ -284,9 +284,7 @@ def get_modules(session: FuturesSession) -> List[str]:
     Returns:
         list: A list of module IDs.
     """
-    search_url = (
-        f"{grok_url}/admin/author-modules/?q_authoring_state=&q=comp10001-2024-s2"
-    )
+    search_url = f"{grok_url}/admin/author-modules/?q_authoring_state=&q={course_slug}"
     hrefs = []
     while True:
         response: requests.Response = requests.get(
