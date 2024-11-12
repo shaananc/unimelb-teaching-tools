@@ -51,22 +51,39 @@ logger.info("Configuration File Successfully Read.")
 
 
 if "log_level" in config[CONFIG_GLOBAL_KEY]:
-    logger.setLevel(config[CONFIG_GLOBAL_KEY]["log_level"])
+    level = config[CONFIG_GLOBAL_KEY]["log_level"]
+    logger.info(f"Setting log level to {level}") 
+    logger.setLevel(level)
 
 
 # Global variables for API use
 global_section = config[CONFIG_GLOBAL_KEY]
-headers = {"Authorization": "Bearer " + global_section["canvas_token"]}
-canvas_api_url = global_section["canvas_api_url"]
-class_url = f'{canvas_api_url}/courses/{global_section["canvas_course_id"]}'
-quiz_url = f'{class_url}/quizzes/{global_section["quiz_id"]}'
+
+canvas_token = config.get(CONFIG_GLOBAL_KEY, "canvas_token", fallback=None)
+if not canvas_token:
+    logger.warning("No Canvas Token found in config.ini")
+canvas_headers = {"Authorization": "Bearer " + str(canvas_token)} if canvas_token else None
+canvas_api_url = config.get(CONFIG_GLOBAL_KEY, "canvas_api_url", fallback=None)
+if not canvas_api_url:
+    logger.warning("No Canvas API URL found in config.ini")
+
+canvas_course_id = config.get(CONFIG_GLOBAL_KEY, "canvas_course_id", fallback=None)
+if not canvas_course_id:
+    logger.warning("No Canvas Course ID found in config.ini")    
+class_url = f'{canvas_api_url}/courses/{canvas_course_id}' if canvas_course_id else None
+quiz_id = config.get(CONFIG_GLOBAL_KEY, "quiz_id", fallback=None)
+if not quiz_id:
+    logger.warning("No Quiz ID found in config.ini")
+quiz_url = f'{class_url}/quizzes/{quiz_id}' if quiz_id else None
+assignment_url = f'{class_url}/assignments//{quiz_id}'
 students_url = f"{class_url}/search_users"
 quiz_submissions_url = f"{quiz_url}/submissions"
 cache_expiry = int(global_section.get("cache_expiry", fallback="0"))
+user_api = f'{canvas_api_url}/users'
 
 
 def canvas_handled_get_request(url, payload) -> Response:
-    r = requests.get(url, headers=headers, params=payload)
+    r = requests.get(url, headers=canvas_headers, params=payload)
     if r.status_code == 401:
         logger.error(
             requests.exceptions.HTTPError(
@@ -102,6 +119,12 @@ def get_links():
     pass
 
 
+def get_user_info_api(user_id: int) -> Dict[str, Any]:
+    url = f"{user_api}/{user_id}/profile"
+    r = requests.get(url, headers=canvas_headers)
+    return json.loads(r.text)
+
+
 def get_user_info(user_id: int) -> Dict[str, Optional[Union[int, str]]]:
     try:
         return get_users_ids()[user_id]
@@ -114,9 +137,16 @@ def get_quiz_info() -> Dict[str, Any]:
     payload = {
         "include[]": [],
     }
-    r = requests.get(quiz_url, headers=headers, params=payload)
+    r = requests.get(quiz_url, headers=canvas_headers, params=payload)
     return json.loads(r.text)
 
+
+def get_assignment_info() -> Dict[str, Any]:
+    payload = {
+        "include[]": [],
+    }
+    r = requests.get(assignment_url, headers=canvas_headers, params=payload)
+    return json.loads(r.text)
 
 def get_quiz_submission_history(quiz_assignment_id: int) -> Iterator[Dict[str, Any]]:
     url = f"{class_url}/assignments/{quiz_assignment_id}/submissions"
@@ -125,7 +155,7 @@ def get_quiz_submission_history(quiz_assignment_id: int) -> Iterator[Dict[str, A
     }
 
     while True:
-        r = requests.get(url, headers=headers, params=payload)
+        r = requests.get(url, headers=canvas_headers, params=payload)
         submissions = json.loads(r.text)
         for submission in submissions:
             yield submission
@@ -139,7 +169,7 @@ def get_quiz_submission_history(quiz_assignment_id: int) -> Iterator[Dict[str, A
 
 
 def get_truthy_config_option(option: str, section: str = CONFIG_GLOBAL_KEY) -> str:
-    r = config.get(section, option=option)
+    r = config.get(section, option=option, fallback=None)
     if not r:
         raise ValueError(f"Needed configuration value '{option}' not set")
     return r
@@ -149,7 +179,7 @@ def submit_quiz_payload(submission_id, payload) -> None:
     logger.info(payload)
     r = requests.put(
         f"{quiz_submissions_url}/{submission_id}",
-        headers=headers,
+        headers=canvas_headers,
         json=payload,
     )
     if r.ok:

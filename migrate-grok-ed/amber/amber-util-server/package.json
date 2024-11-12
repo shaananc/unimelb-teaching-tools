@@ -1,0 +1,12 @@
+{
+  "name": "amber-util-server",
+  "version": "1.0.0",
+  "private": true,
+  "main": "index.js",
+  "dependencies": {
+    "@koa/router": "^10.0.0",
+    "amber-util": "file:/Users/shaananc/Library/Mobile Documents/com~apple~CloudDocs/teaching/unimelblib/migrate-grok-ed/amber/amber-util",
+    "koa": "^2.13.1",
+    "koa-bodyparser": "^4.3.0"
+  }
+}

@@ -5,7 +5,6 @@ Note students who received a zero originally do not receive a grade bump, which 
 
 This script is supplemented by config.ini, for which a sample is provided in which the user can configure the number of fudge points to add or subtract.
 """
-from rich.console import Console
 import sys
 import os
 from pathlib import Path
@@ -24,13 +23,11 @@ from utils import (  # pylint:disable=wrong-import-position
 
 MODULE_CONFIG_SECTION = "FUDGEPOINTS"
 
-initial_fudge_points = int(
+initial_fudge_points = float(
     get_truthy_config_option("initial_fudge_points", MODULE_CONFIG_SECTION)
 )
-max_points = int(get_truthy_config_option("max_points", MODULE_CONFIG_SECTION))
+max_points = float(get_truthy_config_option("max_points", MODULE_CONFIG_SECTION))
 respect_cap = bool(get_truthy_config_option("respect_cap", MODULE_CONFIG_SECTION))
-
-console = Console()
 
 
 def interactive_grader(submission):
