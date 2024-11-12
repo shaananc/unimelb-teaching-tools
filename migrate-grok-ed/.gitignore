@@ -1,1 +1,4 @@
 output/
+.DS_store
+autograding/example1/
+api-token
