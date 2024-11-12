@@ -132,6 +132,16 @@ cache_expiry = int(global_section.get("cache_expiry", fallback="0"))
 
 
 def get_truthy_config_option(option: str, section: str = CONFIG_GLOBAL_KEY) -> str:
+    """
+    Retrieves a configuration option and ensures it is set.
+
+    Args:
+        option (str): The configuration option to retrieve.
+        section (str, optional): The section of the configuration file. Defaults to CONFIG_GLOBAL_KEY.
+
+    Returns:
+        str: The value of the configuration option if it is set and truthy.
+    """
     r = config.get(section, option=option, fallback=None)
     if not r:
         raise ValueError(f"Needed configuration value '{option}' not set")
@@ -165,6 +175,16 @@ if log_level:
 
 
 def attempt_auth(f):
+    """
+    Decorator to handle authentication and retry on HTTP 401 errors.
+
+    Args:
+        f (function): The function to decorate.
+
+    Returns:
+        function: The decorated function with authentication handling.
+    """
+
     def inner(*args, **kwargs):
         try:
             return f(*args, **kwargs)
@@ -179,6 +199,12 @@ def attempt_auth(f):
 
 
 def get_session_token():
+    """
+    Launches a browser to log in to Grok Learning and retrieves the session token.
+
+    Returns:
+        str: The session token retrieved after logging in.
+    """
     firefox_path = get_truthy_config_option("firefox_path", "GLOBAL")
     logger.debug(f"Firefox Path is {firefox_path}")
     options = webdriver.FirefoxOptions()
@@ -200,6 +226,12 @@ def get_session_token():
 
 
 def get_jar():
+    """
+    Returns a cookie jar for storing session cookies.
+
+    Returns:
+        RequestsCookieJar: The cookie jar for storing session cookies.
+    """
     if not get_jar.jar:
         get_jar.jar = requests.cookies.RequestsCookieJar()
     return get_jar.jar
@@ -211,6 +243,15 @@ get_jar.jar = None
 @attempt_auth
 @cachier(stale_after=datetime.timedelta(days=3))
 def get_problems(session: FuturesSession):
+    """
+    Retrieves a list of problems from Grok Learning.
+
+    Args:
+        session (FuturesSession): The session to use for making requests.
+
+    Returns:
+        list: A list of problem IDs.
+    """
     search_url = base_search_url
     hrefs = []
     while True:
@@ -237,6 +278,15 @@ def get_problems(session: FuturesSession):
 @attempt_auth
 @cachier(stale_after=datetime.timedelta(days=3))
 def get_modules(session: FuturesSession):
+    """
+    Retrieves a list of modules from Grok Learning.
+
+    Args:
+        session (FuturesSession): The session to use for making requests.
+
+    Returns:
+        list: A list of module IDs.
+    """
     search_url = (
         f"{grok_url}/admin/author-modules/?q_authoring_state=&q=comp10001-2024-s2"
     )
@@ -263,6 +313,12 @@ def get_modules(session: FuturesSession):
 
 
 def export_problem(problem):
+    """
+    Exports a problem from Grok Learning to a local directory.
+
+    Args:
+        problem (str): The problem ID to export.
+    """
     response: requests.Response = requests.get(
         f"{grok_url}/admin/author-problems/{problem}/export/",
         cookies=get_jar(),
@@ -318,6 +374,13 @@ def export_problem(problem):
 
 
 def slow_tqdm(f, arg):
+    """
+    Wraps a function with a progress bar and adds a delay to prevent rate limiting.
+
+    Args:
+        f (function): The function to wrap.
+        arg (iterable): The iterable to process with the function.
+    """
     with logging_redirect_tqdm():
         for i, problem in tqdm(enumerate(arg)):
             f(problem)
@@ -326,7 +389,9 @@ def slow_tqdm(f, arg):
 
 
 def main():
-
+    """
+    Main function to orchestrate the scraping and exporting process.
+    """
     session: FuturesSession = FuturesSession()
 
     try:
@@ -361,6 +426,12 @@ def main():
 
 
 def generate_problem_id_map():
+    """
+    Generates a map of problem IDs to problem slugs.
+
+    Returns:
+        dict: A dictionary mapping problem IDs to problem slugs.
+    """
     if generate_problem_id_map.problem_id_map:
         return generate_problem_id_map.problem_id_map
 
@@ -384,7 +455,13 @@ generate_problem_id_map.problem_id_map = {}
 
 
 def export_slide(slides, slide_dir: Path):
+    """
+    Exports slides from a module to a local directory.
 
+    Args:
+        slides (list): The list of slides to export.
+        slide_dir (Path): The directory to export the slides to.
+    """
     for i, slide in enumerate(slides):
         slide_title = slide["title"]
         dest = slide_dir / f"{i}.json"
@@ -413,6 +490,13 @@ def export_slide(slides, slide_dir: Path):
 
 
 def export_module(module, modules_dir: Path):
+    """
+    Exports a module from Grok Learning to a local directory.
+
+    Args:
+        module (str): The module ID to export.
+        modules_dir (Path): The directory to export the module to.
+    """
     response: requests.Response = requests.get(
         f"{grok_url}/admin/api/module/{module}",
         cookies=get_jar(),
