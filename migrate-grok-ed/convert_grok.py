@@ -1,4 +1,58 @@
 import json
+
+"""
+This script is designed to manage and manipulate problem data for Grok exercises. It provides functionality to load, dump, test, and backup problem data in JSON and YAML formats. The script also includes utilities for handling workspaces, solutions, and tests.
+
+Functions:
+    fail(s): Format a string with red color for failure.
+    ok(s): Format a string with green color for success.
+    dbg(s): Format a string with dark grey color for debugging.
+    rm_rf(pth): Recursively remove a directory and its contents.
+    timestamp(): Get the current timestamp in ISO format with UTC timezone.
+    is_multiline_string(string): Check if a string contains any newline characters.
+    str_presenter(dumper, data): Present strings in YAML with appropriate formatting based on length and content.
+    dump_one_workspace(workspace, wd): Dump one workspace to the specified directory.
+    load_one_workspace(wd, workspace=None): Load one workspace from the specified directory.
+    load_problem_json(json_path, as_file=True): Load problem JSON from a file or a JSON object.
+    parse_stdio(stdio): Parse stdio format to separate user inputs and expected outputs.
+    create_pyunit_test(wd, pyunit_test): Create a PyUnit test file from the provided test content.
+    main(): Main function to parse arguments and process problems.
+    parse_args(): Parse command-line arguments.
+
+Classes:
+    Loader: Custom YAML loader that supports file inclusion.
+    Problem: Class to manage and manipulate problem data.
+
+Class Problem Methods:
+    __init__(self, ex, internal_json=None, output_dir="output/grok_exercises"): Initialize the Problem instance with exercise name and optional internal JSON data.
+    ensure_directories(self): Ensure required directories and files are present.
+    load(self): Load JSON and dump to tests, content, yaml, etc.
+    dump(self, force=False): Dump JSON and load data, optionally forcing the operation.
+    load_all(self): Load all components (YAML, content, solution notes, solutions, workspace, tests).
+    test(self): Run tests on the problem and return whether they all pass.
+    setup_workspace(self, wd, solution): Set up the workspace for testing by copying files.
+    run_tests(self, wd, out): Run tests on the workspace and return whether they all pass.
+    dump_tests(self): Dump the tests to the specified directory.
+    load_tests(self): Load the tests from the specified directory.
+    check_test_results(self, out, expected_stout, expected_sterr): Check the results of the tests against expected output.
+    save_test_results(self, test_wd, out): Save the results of the tests to the specified directory.
+    dump_workspace(self): Dump the workspace to the specified directory.
+    load_workspace(self): Load the workspace from the specified directory.
+    dump_solutions(self): Dump the solutions to the specified directory.
+    load_solutions(self): Load the solutions from the specified directory.
+    json_path(self): Get the path to the JSON file for the problem.
+    diff_json(self): Display the diff between the old and new JSON files.
+    diff_yaml(self): Display the diff between the old and new YAML files.
+    backup_json(self): Backup the current JSON file.
+    load_json(self): Load the JSON file for the problem.
+    dump_json(self): Dump the current state to the JSON file.
+    dump_yaml(self): Dump the current state to the YAML file.
+    load_yaml(self): Load the YAML file for the problem.
+    dump_content(self): Dump the content to the markdown file.
+    load_content(self): Load the content from the markdown file.
+    dump_solution_notes(self): Dump the solution notes to the markdown file.
+    load_solution_notes(self): Load the solution notes from the markdown file.
+"""
 import argparse
 import glob
 from pathlib import Path
@@ -25,9 +79,12 @@ logger = logging.getLogger(__name__)
 FORMAT = "%(message)s"
 rich_handler = RichHandler(markup=True)
 file_handler = logging.FileHandler(filename="unimelblib.log")
-file_handler.setFormatter(logging.Formatter(
-    "%(asctime)s %(name)-12s %(levelname)-8s %(message)s", datefmt="%d-%b-%y %H:%M:%S"
-))
+file_handler.setFormatter(
+    logging.Formatter(
+        "%(asctime)s %(name)-12s %(levelname)-8s %(message)s",
+        datefmt="%d-%b-%y %H:%M:%S",
+    )
+)
 
 logging.basicConfig(
     level="INFO",
@@ -37,19 +94,25 @@ logging.basicConfig(
 )
 
 import rich.traceback
+
 rich.traceback.install()
+
+
 # Utility functions for colored output
 def fail(s):
     """Format a string with red color for failure."""
     return f"[bold red]{s}[/bold red]"
 
+
 def ok(s):
     """Format a string with green color for success."""
     return f"[bold green]{s}[/bold green]"
 
+
 def dbg(s):
     """Format a string with dark grey color for debugging."""
     return f"[dim]{s}[/dim]"
+
 
 def rm_rf(pth):
     """Recursively remove a directory and its contents."""
@@ -62,13 +125,16 @@ def rm_rf(pth):
             sub.unlink()
     pth.rmdir()
 
+
 def timestamp():
     """Get the current timestamp in ISO format with UTC timezone."""
     return datetime.now(timezone.utc).isoformat()
 
+
 def is_multiline_string(string):
     """Check if a string contains any newline characters."""
     return any(c in string for c in "\u000a\u000d\u001c\u001d\u001e\u0085\u2028\u2029")
+
 
 def str_presenter(dumper: Dumper, data: str) -> Node:
     """Present strings in YAML with appropriate formatting based on length and content."""
@@ -80,10 +146,13 @@ def str_presenter(dumper: Dumper, data: str) -> Node:
         style = None
     return dumper.represent_scalar("tag:yaml.org,2002:str", data, style=style)
 
+
 yaml.add_representer(str, str_presenter)
+
 
 class Loader(yaml.SafeLoader):
     """Custom YAML loader that supports file inclusion."""
+
     def __init__(self, stream):
         self._root = os.path.split(stream.name)[0]
         super().__init__(stream)
@@ -92,6 +161,7 @@ class Loader(yaml.SafeLoader):
         filename = os.path.join(self._root, self.construct_scalar(node))
         with open(filename, "r") as f:
             return yaml.load(f, Loader)
+
 
 Loader.add_constructor("!include", Loader.include)
 
@@ -104,6 +174,7 @@ KEYS_WITH_DUMPS_VALUES = (
     "blockly_blocks",
 )
 
+
 def dump_one_workspace(workspace, wd):
     """Dump one workspace to the specified directory."""
     for entry in workspace:
@@ -111,6 +182,7 @@ def dump_one_workspace(workspace, wd):
         path = wd / entry["path"]
         with open(path, "w") as f:
             f.write(entry["content"])
+
 
 def load_one_workspace(wd, workspace=None):
     """Load one workspace from the specified directory."""
@@ -138,6 +210,7 @@ def load_one_workspace(wd, workspace=None):
         workspace.append(entry)
     return workspace
 
+
 FILETYPE_NAMES = {
     0: "stdio",
     1: "stdout",
@@ -150,6 +223,7 @@ FILETYPE_NAMES = {
     22: "multichoice",
 }
 FILETYPE_NOS = {v: k for k, v in FILETYPE_NAMES.items()}
+
 
 def load_problem_json(json_path, as_file=True):
     """Load problem JSON from a file or a JSON object."""
@@ -165,12 +239,18 @@ def load_problem_json(json_path, as_file=True):
         try:
             obj[k] = json.loads(obj[k])
         except json.decoder.JSONDecodeError:
-            import ipdb; ipdb.set_trace()
-            import sys; sys.exit(1)
+            import ipdb
+
+            ipdb.set_trace()
+            import sys
+
+            sys.exit(1)
     return obj
+
 
 class Problem:
     """Class to manage and manipulate problem data."""
+
     def __init__(self, ex, internal_json=None, output_dir="output/grok_exercises"):
         """Initialize the Problem instance with exercise name and optional internal JSON data."""
         self.internal_json = internal_json
@@ -251,8 +331,10 @@ class Problem:
         logger.info(ok("✓ all tests passed") if passed else fail("✗ some tests failed"))
         if not passed:
             import sys
+
             sys.exit(1)
             import ipdb
+
             ipdb.set_trace()
         return passed
 
@@ -312,6 +394,7 @@ class Problem:
                 )
                 expected_stdout = "\n".join(expected_outputs)
                 import ipdb
+
                 ipdb.set_trace()
                 pass
             else:
@@ -373,14 +456,20 @@ class Problem:
                 try:
                     if file["type"] == 6:
                         # PyUnit test
-                        pyunit_test_file = self.create_pyunit_test(path, file["content"])
+                        pyunit_test_file = self.create_pyunit_test(
+                            path, file["content"]
+                        )
                     else:
                         # Other test types
                         with open(path / FILETYPE_NAMES[file["type"]], "w") as f:
                             f.write(file["content"])
                 except KeyError:
-                    import ipdb; ipdb.set_trace()
-                    import sys; sys.exit(1)
+                    import ipdb
+
+                    ipdb.set_trace()
+                    import sys
+
+                    sys.exit(1)
             with open(path / "test.yaml", "w") as f:
                 entry = {**entry}
                 del entry["files"]
@@ -430,16 +519,15 @@ class Problem:
         with open(test_wd / "stderr", "w") as f:
             f.write(out.stderr)
 
-
-
-
     def dump_workspace(self):
         """Dump the workspace to the specified directory."""
         dump_one_workspace(self.obj["workspace"], self.wd / "workspace")
 
     def load_workspace(self):
         """Load the workspace from the specified directory."""
-        self.obj["workspace"] = load_one_workspace(self.wd / "workspace", self.obj["workspace"])
+        self.obj["workspace"] = load_one_workspace(
+            self.wd / "workspace", self.obj["workspace"]
+        )
 
     def dump_solutions(self):
         """Dump the solutions to the specified directory."""
@@ -469,14 +557,26 @@ class Problem:
         """Display the diff between the old and new JSON files."""
         old_json = load_problem_json(self.json_path)
         logger.info("diff:")
-        logger.info(json.dumps(diff(old_json, self.obj, syntax="symmetric", marshal=True), indent=4, sort_keys=True))
+        logger.info(
+            json.dumps(
+                diff(old_json, self.obj, syntax="symmetric", marshal=True),
+                indent=4,
+                sort_keys=True,
+            )
+        )
 
     def diff_yaml(self):
         """Display the diff between the old and new YAML files."""
         yaml_txt = yaml.dump(self.obj, width=60).split("\n")
         old_json = load_problem_json(self.json_path)
         old_yaml_txt = yaml.dump(old_json, width=60).split("\n")
-        logger.info(dbg("\n".join(difflib.unified_diff(old_yaml_txt, yaml_txt, n=0, lineterm=""))))
+        logger.info(
+            dbg(
+                "\n".join(
+                    difflib.unified_diff(old_yaml_txt, yaml_txt, n=0, lineterm="")
+                )
+            )
+        )
 
     def backup_json(self):
         """Backup the current JSON file."""
@@ -516,7 +616,9 @@ class Problem:
     def dump_content(self):
         """Dump the content to the markdown file."""
         with open(self.wd / "content.md", "w") as f:
-            content = re.sub("^(#markdown)", f"# {self.obj['title']}", self.obj["content"])
+            content = re.sub(
+                "^(#markdown)", f"# {self.obj['title']}", self.obj["content"]
+            )
             f.write(content)
 
     def load_content(self):
@@ -528,7 +630,11 @@ class Problem:
     def dump_solution_notes(self):
         """Dump the solution notes to the markdown file."""
         with open(self.wd / "solution_notes.md", "w") as f:
-            solution = re.sub("^(#markdown)", f"# {self.obj['title']} - Solution Notes", self.obj["notes"])
+            solution = re.sub(
+                "^(#markdown)",
+                f"# {self.obj['title']} - Solution Notes",
+                self.obj["notes"],
+            )
             f.write(solution)
 
     def load_solution_notes(self):
@@ -536,6 +642,7 @@ class Problem:
         with open(self.wd / "solution_notes.md", "r") as f:
             solution = f.read()
             self.obj["notes"] = re.sub("^(# .*)", f"#markdown", solution)
+
 
 def main():
     """Main function to parse arguments and process problems."""
@@ -565,17 +672,37 @@ def main():
         else:
             problem.test()
 
+
 def parse_args():
     """Parse command-line arguments."""
-    parser = argparse.ArgumentParser(description="Parse and test Grok problems\nExpects to be placed within problems directory")
-    parser.add_argument("names", help="exercise names, eg: ex1.02", nargs="*", default=None)
-    parser.add_argument("-r", action="store_true", help="read json and overwrite local files")
-    parser.add_argument("-w", action="store_true", help="write json (and backup current json), if testing succeeds")
-    parser.add_argument("-f", action="store_true", help="force write json (and backup current json), ignoring testing")
-    parser.add_argument("-d", action="store_true", help="diff only (json vs current work directory)")
-    parser.add_argument("-o", "--output-dir", help="output directory", default="output/grok_exercises")
+    parser = argparse.ArgumentParser(
+        description="Parse and test Grok problems\nExpects to be placed within problems directory"
+    )
+    parser.add_argument(
+        "names", help="exercise names, eg: ex1.02", nargs="*", default=None
+    )
+    parser.add_argument(
+        "-r", action="store_true", help="read json and overwrite local files"
+    )
+    parser.add_argument(
+        "-w",
+        action="store_true",
+        help="write json (and backup current json), if testing succeeds",
+    )
+    parser.add_argument(
+        "-f",
+        action="store_true",
+        help="force write json (and backup current json), ignoring testing",
+    )
+    parser.add_argument(
+        "-d", action="store_true", help="diff only (json vs current work directory)"
+    )
+    parser.add_argument(
+        "-o", "--output-dir", help="output directory", default="output/grok_exercises"
+    )
     args = parser.parse_args()
     return args
+
 
 if __name__ == "__main__":
     main()

@@ -1,4 +1,27 @@
 import shutil
+
+"""
+This script is used to interact with the EdStem API to create and manage lessons, slides, and challenges.
+It uses various libraries including requests, marshmallow_dataclass, pydantic, and rich for logging and pretty printing.
+
+Classes:
+    edAPI: Main class to interact with the EdStem API.
+        - EDAPI_OBJ: Base class for API objects that require server-side IDs.
+        - Module: Represents a module in the EdStem system.
+        - Slide: Represents a slide in the EdStem system.
+        - Lesson: Represents a lesson in the EdStem system.
+        - Challenge: Represents a challenge in the EdStem system.
+
+Functions:
+    rsync(src: str, dest: str, args): A retrying rsync function to synchronize files.
+    create_challenge(folder: Path, session: edAPI, lesson: edAPI.Lesson): Creates a challenge from a given folder.
+    get_new_or_old_slide(session: edAPI, lesson: edAPI.Lesson, slide_title: str, slide_type: str) -> edAPI.Slide: Retrieves or creates a new slide.
+    create_slides_and_challenges(slide_folder: Path, session: edAPI, lesson: edAPI.Lesson): Creates slides and challenges from a given folder.
+    create_lesson(lesson_folder: Path, session: edAPI, module: edAPI.Module, existing_lessons): Creates a lesson from a given folder.
+    create_module(module_folder: Path, session: edAPI, existing_modules, existing_lessons): Creates a module from a given folder.
+    create_all_modules(session: edAPI): Creates all modules by iterating through the output/grok_exercises directory.
+    main(): Main function to initiate the session and create all modules.
+"""
 import requests
 import json
 import rich

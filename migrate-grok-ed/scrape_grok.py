@@ -1,4 +1,59 @@
 from json import JSONDecodeError
+
+"""
+This script scrapes problems and modules from the Grok Learning platform and exports them to a local directory.
+It uses various libraries for web scraping, logging, and caching.
+
+Modules:
+    - requests: For making HTTP requests.
+    - rich: For rich text and logging.
+    - cachier: For caching function results.
+    - tqdm: For progress bars.
+    - bs4: For parsing HTML.
+    - markdown: For Markdown processing.
+    - convert_grok: Custom module for converting Grok problems.
+    - preprocess_markdown: Custom module for preprocessing Markdown files.
+
+Functions:
+    - get_truthy_config_option(option: str, section: str = CONFIG_GLOBAL_KEY) -> str:
+        Retrieves a configuration option and ensures it is set.
+
+    - attempt_auth(f):
+        Decorator to handle authentication and retry on HTTP 401 errors.
+
+    - get_session_token():
+        Launches a browser to log in to Grok Learning and retrieves the session token.
+
+    - get_jar():
+        Returns a cookie jar for storing session cookies.
+
+    - get_problems(session: FuturesSession):
+        Retrieves a list of problems from Grok Learning.
+
+    - get_modules(session: FuturesSession):
+        Retrieves a list of modules from Grok Learning.
+
+    - export_problem(problem):
+        Exports a problem from Grok Learning to a local directory.
+
+    - slow_tqdm(f, arg):
+        Wraps a function with a progress bar and adds a delay to prevent rate limiting.
+
+    - main():
+        Main function to orchestrate the scraping and exporting process.
+
+    - generate_problem_id_map():
+        Generates a map of problem IDs to problem slugs.
+
+    - export_slide(slides, slide_dir: Path):
+        Exports slides from a module to a local directory.
+
+    - export_module(module, modules_dir: Path):
+        Exports a module from Grok Learning to a local directory.
+
+Usage:
+    Run the script to scrape problems and modules from Grok Learning and export them to the "output" directory.
+"""
 import shutil
 import requests
 from rich import print
