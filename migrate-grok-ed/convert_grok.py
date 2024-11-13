@@ -390,12 +390,14 @@ class Problem:
                     cwd=wd,
                     stdout=subprocess.PIPE,
                     stderr=subprocess.PIPE,
-                    universal_newlines=True,
+                    text=True,
                 )
-                expected_stdout = "\n".join(expected_outputs)
+                expected_stdout = "\n".join(expected_outputs) + "\n"
+
                 import ipdb
 
                 ipdb.set_trace()
+
                 pass
             else:
                 # Standard input/output tests
@@ -405,11 +407,11 @@ class Problem:
                     f.write(stdin)
                 out = subprocess.run(
                     ["python", "problem.py"],
-                    input=stdin if stdin else None,
+                    input=stdin,
                     cwd=wd,
                     stdout=subprocess.PIPE,
                     stderr=subprocess.PIPE,
-                    universal_newlines=True,
+                    text=True,
                 )
 
             passed &= self.check_test_results(out, expected_stdout, expected_stderr)
@@ -417,17 +419,42 @@ class Problem:
         return passed
 
     def parse_stdio(self, stdio):
-        """Parse stdio format to separate user inputs and expected outputs."""
+        """
+        Parse stdio format to separate user inputs and expected outputs.
+
+        Expects lines in the format:
+            <prompt>@@@<user_input>
+            or
+            <output>
+
+        Parameters:
+            stdio (str): The stdio string to parse.
+
+        Returns:
+            tuple: (user_inputs, expected_outputs)
+                - user_inputs: List of user inputs extracted from the stdio.
+                - expected_outputs: List of all expected output lines, including prompts.
+        """
         lines = stdio.splitlines()
         user_inputs = []
         expected_outputs = []
+
+        tmp_expected_output = ""
         for line in lines:
             if "@@@" in line:
-                prompt, user_input = line.split("@@@")
-                expected_outputs.append(prompt.strip())
-                user_inputs.append(user_input.strip())
+                # Line contains a prompt and user input
+                prompt, user_input = line.split("@@@", 1)
+                tmp_expected_output += prompt.strip() + " "
+
+                user_inputs.append(user_input.strip())  # Extract the user input
             else:
-                expected_outputs.append(line.strip())
+                # Line is a pure output
+                expected_outputs.append(tmp_expected_output + line.strip())
+                tmp_expected_output = ""
+
+        if tmp_expected_output:
+            expected_outputs.append(tmp_expected_output)
+
         return user_inputs, expected_outputs
 
     def create_pyunit_test(self, wd, pyunit_test):
