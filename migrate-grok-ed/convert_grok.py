@@ -394,10 +394,6 @@ class Problem:
                 )
                 expected_stdout = "\n".join(expected_outputs) + "\n"
 
-                import ipdb
-
-                ipdb.set_trace()
-
                 pass
             else:
                 # Standard input/output tests
