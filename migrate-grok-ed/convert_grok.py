@@ -449,8 +449,8 @@ class Problem:
         wd = self.wd / "tests"
         rm_rf(wd)
         wd.mkdir()
-        for test_no, entry in enumerate(self.obj["tests"]["tests"]):
-            path = wd / str(test_no)
+        for entry in self.obj["tests"]["tests"]:
+            path = wd / entry["label"]
             path.mkdir()
             for file in entry["files"]:
                 try:
@@ -479,7 +479,7 @@ class Problem:
         """Load the tests from the specified directory."""
         wd = self.wd / "tests"
         self.obj["tests"]["tests"] = []
-        for test_no, path in enumerate(sorted(glob.glob(f"{wd}/*"))):
+        for path in sorted(glob.glob(f"{wd}/*")):
             with open(path + "/test.yaml") as f:
                 test = yaml.safe_load(f)
             test["files"] = []
@@ -656,6 +656,7 @@ def main():
     for problem_name in problems:
         logger.info(f"{problem_name} ------")
         problem = Problem(problem_name, output_dir=args.output_dir)
+
         if args.d:
             logger.info(f"Diffing problem {problem_name}")
             problem.load_all()
