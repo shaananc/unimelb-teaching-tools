@@ -256,6 +256,11 @@ def get_problems(session: FuturesSession) -> List[str]:
             search_url, cookies=get_jar(), headers={"User-agent": "your bot 0.1"}
         )
         response.raise_for_status()
+
+        if "Please log in below" in response.text:
+            logger.fatal("Login unsuccessful, please check your credentials")
+            raise ValueError("Unsuccessful login")
+
         soup = bs4.BeautifulSoup(response.text, "html.parser")
         # get all hrefs inside links that follow tbody > tr > td > a
         links = soup.select("tbody > tr > td > a")
