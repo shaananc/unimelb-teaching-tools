@@ -262,6 +262,14 @@ def get_problems(session: FuturesSession) -> List[str]:
         hrefs += [str(link.get("href")).split("/")[-2] for link in links]
 
         next_page_links = soup.select("nav > ul > li.active + li > a")
+
+        # deal with case where there is no next page
+        if not next_page_links:
+            logger.debug(
+                "No next page links! Are you sure you have the right course slug and token?"
+            )
+            break
+
         next_href = next_page_links[0].get("href")
         if next_href == "#":
             break
@@ -388,11 +396,18 @@ def main() -> None:
     Main function to orchestrate the scraping and exporting process.
     """
     session: FuturesSession = FuturesSession()
-
+    ipdb.set_trace()
     try:
         session_token: str = get_truthy_config_option(
             "grok_token", MODULE_CONFIG_SECTION
         )
+
+        # remove starting ' and ending ' from the token if it does exist
+        if session_token.startswith("'") and session_token.endswith("'"):
+            session_token = session_token[1:-1]
+
+        if not session_token:
+            raise ValueError("Session token not found")
     except ValueError:
         logger.warning("Session token not found, launching Grok Login")
         session_token = get_session_token()
