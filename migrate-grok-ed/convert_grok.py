@@ -65,6 +65,7 @@ import subprocess
 import difflib
 import logging
 from rich.logging import RichHandler
+from tqdm import tqdm
 
 # requires Python 3.9+
 # pip install jsondiff pyyaml
@@ -353,7 +354,10 @@ class Problem:
         for test_no, test in enumerate(self.obj["tests"]["tests"]):
             test_wd = wd / "out" / str(test_no)
             test_wd.mkdir(parents=True, exist_ok=True)
-            logger.info(f"Testing #{test_no}: {test['onpass']} ({test['label']}) ... ")
+            onpass = (
+                test["onpass"] if "onpass" in test else "pass (no onpass specified)"
+            )
+            logger.info(f"Testing #{test_no}: {onpass} ({test['label']}) ... ")
             content = {t["type"]: t["content"] for t in test["files"]}
             stdin = content.get(3, "")
             expected_stdout = content.get(1, content.get(0, None))
@@ -373,7 +377,10 @@ class Problem:
                 )
                 expected_stdout = ""
                 expected_stderr = ""
-
+            elif not content:
+                logger.warning("No content found for test")
+                passed = True
+                continue
             elif driver:
                 # Custom driver execution
                 with open(wd / "driver.py", "w") as f:
@@ -435,7 +442,7 @@ class Problem:
                     stderr=subprocess.PIPE,
                     text=True,
                 )
-            else:
+            elif Path(wd / "problem.py").exists():
                 # Standard input/output tests
                 with open(wd / "problem.py") as f:
                     script = f.read()
@@ -449,6 +456,10 @@ class Problem:
                     stderr=subprocess.PIPE,
                     text=True,
                 )
+            else:
+                logger.error(fail("✗ Failed! (no test driver found)"))
+                passed = False
+                continue
 
             # only check pass fail for non-PEP8 tests
             if test["label"].lower() != "pep8":
@@ -529,13 +540,22 @@ class Problem:
 
             path = wd / entry["label"]
             path.mkdir()
+            if entry["label"].lower() == "pep8":
+                with open(path / "test.yaml", "w") as f:
+                    yaml.dump(entry, f, width=60)
+                continue
+
             for file in entry["files"]:
                 try:
                     if file["type"] == 6:
                         # PyUnit test
-                        pyunit_test_file = self.create_pyunit_test(
-                            path, file["content"]
-                        )
+                        if file["content"]:
+                            pyunit_test_file = self.create_pyunit_test(
+                                path, file["content"]
+                            )
+                        else:
+                            # write a blank file
+                            pyunit_test_file = path / "test_pyunit.py"
                     else:
                         # Other test types
                         with open(path / FILETYPE_NAMES[file["type"]], "w") as f:
@@ -733,7 +753,7 @@ def main():
         logger.info(problems)
     else:
         problems = args.names
-    for problem_name in problems:
+    for problem_name in tqdm(problems):
         logger.info(f"{problem_name} ------")
         problem = Problem(problem_name, output_dir=args.output_dir)
 
