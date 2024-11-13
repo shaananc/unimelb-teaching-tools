@@ -361,8 +361,9 @@ class Problem:
             driver = content.get(10, None)
             pyunit_test = content.get(6, None)
             stdio = content.get(0, None)
+            custom_driver = content.get(4, None)
 
-            if test["label"] == "pep8":
+            if test["label"].lower() == "pep8":
                 # PEP8 compliance check
                 out = subprocess.run(
                     ["pycodestyle", wd / "program.py"],
@@ -384,6 +385,19 @@ class Problem:
                     stderr=subprocess.PIPE,
                     universal_newlines=True,
                 )
+            elif custom_driver:
+                # Custom driver execution
+                # write the content from custom_driver to a file and then execute it
+                with open(wd / "driver.py", "w") as f:
+                    f.write(custom_driver)
+                out = subprocess.run(
+                    ["python", "driver.py"],
+                    cwd=wd,
+                    stdout=subprocess.PIPE,
+                    stderr=subprocess.PIPE,
+                    universal_newlines=True,
+                )
+
             elif pyunit_test:
                 # PyUnit test execution
                 pyunit_test_file = self.create_pyunit_test(wd, pyunit_test)
@@ -397,9 +411,13 @@ class Problem:
             elif stdio:
                 # stdio tests
                 user_inputs, expected_outputs = self.parse_stdio(stdio)
+                user_input = "\n".join(user_inputs)
+                if not user_input:
+                    user_input = "\n"
+
                 out = subprocess.run(
                     ["python", "program.py"],
-                    input="\n".join(user_inputs),
+                    input=user_input,
                     cwd=wd,
                     stdout=subprocess.PIPE,
                     stderr=subprocess.PIPE,
@@ -433,7 +451,7 @@ class Problem:
                 )
 
             # only check pass fail for non-PEP8 tests
-            if test["label"] != "pep8":
+            if test["label"].lower() != "pep8":
                 passed &= self.check_test_results(out, expected_stdout, expected_stderr)
 
                 if not passed:
@@ -477,10 +495,10 @@ class Problem:
                 prompt, user_input = line.split("@@@", 1)
                 tmp_expected_output += prompt.strip() + " "
 
-                user_inputs.append(user_input.strip())  # Extract the user input
+                user_inputs.append(user_input)  # Extract the user input
             else:
                 # Line is a pure output
-                expected_outputs.append(tmp_expected_output + line.strip())
+                expected_outputs.append(tmp_expected_output + line)
                 tmp_expected_output = ""
 
         if tmp_expected_output:
