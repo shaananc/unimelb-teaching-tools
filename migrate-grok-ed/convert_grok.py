@@ -221,8 +221,10 @@ FILETYPE_NAMES = {
     6: "pyunit",
     10: "custom_driver",
     22: "multichoice",
+    8: "class io",
 }
 FILETYPE_NOS = {v: k for k, v in FILETYPE_NAMES.items()}
+FILETYPE_NOS["test_pyunit.py"] = 6
 
 
 def load_problem_json(json_path, as_file=True):
@@ -360,7 +362,18 @@ class Problem:
             pyunit_test = content.get(6, None)
             stdio = content.get(0, None)
 
-            if driver:
+            if test["label"] == "pep8":
+                # PEP8 compliance check
+                out = subprocess.run(
+                    ["pycodestyle", wd / "program.py"],
+                    stdout=subprocess.PIPE,
+                    stderr=subprocess.PIPE,
+                    universal_newlines=True,
+                )
+                expected_stdout = ""
+                expected_stderr = ""
+
+            elif driver:
                 # Custom driver execution
                 with open(wd / "driver.py", "w") as f:
                     f.write(driver)
@@ -395,6 +408,15 @@ class Problem:
                 expected_stdout = "\n".join(expected_outputs) + "\n"
 
                 pass
+            elif expected_stdout:
+                out = subprocess.run(
+                    ["python", "program.py"],
+                    input=stdin,
+                    cwd=wd,
+                    stdout=subprocess.PIPE,
+                    stderr=subprocess.PIPE,
+                    text=True,
+                )
             else:
                 # Standard input/output tests
                 with open(wd / "problem.py") as f:
@@ -410,7 +432,20 @@ class Problem:
                     text=True,
                 )
 
-            passed &= self.check_test_results(out, expected_stdout, expected_stderr)
+            # only check pass fail for non-PEP8 tests
+            if test["label"] != "pep8":
+                passed &= self.check_test_results(out, expected_stdout, expected_stderr)
+
+                if not passed:
+                    import ipdb
+
+                    ipdb.set_trace()
+
+            else:
+                logger.info("PEP8 compliance check")
+                logger.info(out.stdout)
+                logger.info(out.stderr)
+
             self.save_test_results(test_wd, out)
         return passed
 
@@ -473,6 +508,7 @@ class Problem:
         rm_rf(wd)
         wd.mkdir()
         for entry in self.obj["tests"]["tests"]:
+
             path = wd / entry["label"]
             path.mkdir()
             for file in entry["files"]:
@@ -503,6 +539,7 @@ class Problem:
         wd = self.wd / "tests"
         self.obj["tests"]["tests"] = []
         for path in sorted(glob.glob(f"{wd}/*")):
+
             with open(path + "/test.yaml") as f:
                 test = yaml.safe_load(f)
             test["files"] = []
@@ -673,6 +710,8 @@ def main():
     if len(args.names) == 0:
         logger.info("Using all problems in directory")
         problems = [Path(p) for p in os.listdir("output/grok_exercises")]
+        # filter out non directories
+        problems = [p for p in problems if (Path("output/grok_exercises") / p).is_dir()]
         logger.info(problems)
     else:
         problems = args.names
