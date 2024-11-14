@@ -5,31 +5,30 @@ import subprocess
 import html
 from bs4 import BeautifulSoup
 from unidecode import unidecode
-
 from itertools import chain
 from tqdm import tqdm
-
-
-# all printing should be done by rich
-from rich import print
+from rich import print  # Use rich for all printing
 
 
 def replace_entities(match):
     unescaped = html.unescape(match.group(0))
-    unescaped.strip("\n").lstrip("\n")
+    unescaped = unescaped.strip("\n").lstrip("\n")
     return unescaped
 
 
-def process_file(f: Path):
+def replace_inline_code(text):
+    """
+    Replace <code data-lang='py3'>...</code> with Markdown backticks.
+    """
+    pattern = r"<code data-lang='py3'>(.*?)</code>"
+    return re.sub(pattern, r"`\1`", text)
 
-    # find this regex: "path.*;lang:(.*);.*\n"
-    # replace it with group 1
-    # write it out again
+
+def process_file(f: Path):
+    # Read the file content
     text = f.read_text()
 
-    # text = re.sub(r"```.*lang:(.*?);.*\n", r"```\1", text) # TODO: make an RE that works
-    text = text.replace("bashshell", "bash")
-
+    # Replace code blocks with language directives
     lines = []
     for line in text.splitlines():
         if re.match("```.+:.*$", line):
@@ -41,46 +40,47 @@ def process_file(f: Path):
 
     text = "\n".join(lines)
 
+    # Replace specific text patterns
+    text = text.replace("bashshell", "bash")
     text = text.replace(
         """```
 
 ```""",
         "",
     )
-
-    text = text.replace("Grok", "Ed")
-    text = text.replace("grok", "Ed")
-
+    text = text.replace("Grok", "Ed").replace("grok", "Ed")
     text = re.sub(r"\s*```", "\n```", text, flags=re.MULTILINE)
-
     text = text.replace("```norun", "```")
+    text = text.replace("$$", "$").replace("@@@", "")
 
-    text = text.replace("$$", "$")
-    text = text.replace("@@@", "")
+    # Replace inline code
+    text = replace_inline_code(text)
 
-    # move the old file to *.bak
-    f.rename(f"{f}.bak")
-    # write the new file
+    # Check if a .bak file already exists
+    backup_path = f.with_suffix(f"{f.suffix}.bak")
+    if not backup_path.exists():
+        f.rename(backup_path)
+    else:
+        print(
+            f"[yellow]Backup file already exists for {f}. Skipping backup creation.[/yellow]"
+        )
+
+    # Write the updated file content back
     f.write_text(text)
 
-    # in the final amber, replace the code blocks with snippets somehow <snippet language=\"py\" runnable=\"true\" line-numbers=\"true\"/>
+    # Convert Markdown to HTML
+    html_content = markdown.markdown(text, extensions=["fenced_code"])
+    f.with_suffix(".html").write_text(html_content)
 
-    # convert the markdown to html
-    html = markdown.markdown(text, extensions=["fenced_code"])
-    # write the file to html using the same name, with a .html file extension instead of .md
-    f.with_suffix(".html").write_text(html)
+    # Get path to the HTML-to-Amber converter
+    cpath = Path(__file__).parent / "amber" / "amber-util" / "convert.js"
 
-    # get path of the current file
-    cpath = Path(__file__).parent.absolute()
-    # add to cpath amber/amber-util/convert.js
-    cpath = cpath / "amber" / "amber-util" / "convert.js"
-
-    # then run the html through the html to amber converter (convert.js)
+    # Run the converter
     fabs = f.absolute().with_suffix(".html")
     famber = f.absolute().with_suffix(".xml")
-    # print(f'node {cpath} {fabs} {famber}')
     subprocess.run(["node", cpath, str(fabs), str(famber)])
 
+    # Clean up Amber snippets
     amber_text = famber.read_text()
     amber_text = re.sub(
         r"<snippet>.*?</snippet>", replace_entities, amber_text, flags=re.DOTALL
@@ -89,10 +89,9 @@ def process_file(f: Path):
 
 
 def process_exercises():
-    # glob all markdown files in output/grok_exercises
-    # for each file, read it in, and write it out again
+    # Glob all markdown files in output/grok_exercises
     origin = Path("output/grok_exercises/")
-    files = chain(origin.rglob("content.md"), origin.rglob("solution_notes.md"))
+    files = chain(origin.rglob("*.md"), origin.rglob("solution_notes.md"))
     for f in tqdm(files):
         process_file(f)
 
@@ -101,30 +100,16 @@ def process_modules():
     origin = Path("output/modules/")
     files = chain(origin.rglob("**/*.md"))
     for f in tqdm(files):
-        # process_file(f)
-        print(f)
-        # TODO this was hacky because didn't run it properly the first time. Remove later
-        # convert the markdown to html
+        # Convert the markdown to HTML
         text = f.read_text()
-        html = markdown.markdown(text, extensions=["fenced_code"])
-        # write the file to html using the same name, with a .html file extension instead of .md
-        f.with_suffix(".html").write_text(html)
+        html_content = markdown.markdown(text, extensions=["fenced_code"])
+        f.with_suffix(".html").write_text(html_content)
 
-        # get path of the current file
-        cpath = Path(__file__).parent.absolute()
-        # add to cpath amber/amber-util/convert.js
-        cpath = cpath / "amber" / "amber-util" / "convert.js"
+        # Get path to the converter
+        cpath = Path(__file__).parent / "amber" / "amber-util" / "convert.js"
         fabs = f.absolute().with_suffix(".html")
         famber = f.absolute().with_suffix(".xml")
-        # print(f'node {cpath} {fabs} {famber}')
         subprocess.run(["node", cpath, str(fabs), str(famber)])
-
-
-def main():
-    pass
-    # modules disabled at the moment to avoid overwriting the existing files
-    # process_modules()
-    process_exercises()
 
 
 def unescape_file(f: Path):
@@ -148,6 +133,12 @@ def unescape_all():
     files = chain(origin.glob("**/content.xml"), modules.rglob("**/*.xml"))
     for f in tqdm(files):
         unescape_file(f)
+
+
+def main():
+    # Modules disabled at the moment to avoid overwriting the existing files
+    process_modules()
+    process_exercises()
 
 
 if __name__ == "__main__":
