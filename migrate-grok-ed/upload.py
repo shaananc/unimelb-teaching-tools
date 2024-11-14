@@ -178,6 +178,9 @@ class edAPI:
 
             # log.debug(request.__dict__)
             if (DRY_RUN_ALLOW_GETS and method == "GET") or not DRY_RUN:
+                if request.body:
+                    log.debug(request.body)
+
                 response = session.send(request, verify=True)
                 try:
                     response.raise_for_status()
@@ -250,8 +253,6 @@ class edAPI:
             return self.api_request("PATCH", data=data, json_data=json_data)
 
         def post(self, data=None, json_data=None, include_sid=True, url_suffix=""):
-            import ipdb
-
             if json_data:
                 json_data = self.wrap(json_data)
             response = self.api_request(
@@ -430,7 +431,6 @@ class edAPI:
             return self.api_request("PUT", data=data, json_data=json_data, files=files)
 
         def get_challenge(self):
-            edAPI.Challenge()
 
             schema = marshmallow_dataclass.class_schema(edAPI.Challenge)()
             challenge = edAPI.Challenge(None, None, None, None, None, None, None, None, None, None, None, None, None, None, None, None, None, None, None, None, None, None, None, None, None, None, None, None, None, None, None, None, None, None, None, None, None, None, None, None, None, None, None, None, None, None, None, None, None, None).new(self.base_url, self.token, self.challenge_id)  # type: ignore
@@ -524,6 +524,7 @@ class edAPI:
         attempts_remaining: Optional[int | None] = None
         grade_passback_scale_to: Optional[int | None] = None
         password_one_time: Optional[bool | None] = None
+        slide_marks_summary: Optional[List[slide.SlideSummaryDataClass] | None] = None
 
         def create(self):
             return super().create(f"courses/{self.class_id}/{self.url_suffix}")
@@ -598,6 +599,7 @@ class edAPI:
             self.attempts_remaining: Optional[int | None] = None
             self.grade_passback_scale_to: Optional[int | None] = None
             self.password_one_time: Optional[bool | None] = None
+            self.slide_marks_summary: Optional[str | None] = None
 
             return self
 
@@ -676,10 +678,19 @@ class edAPI:
 
         def json_str(self):
             tmp = super().dump()
-            bak = tmp["tickets"]["connect"]["from_"]  # type: ignore
-            tmp["tickets"]["connect"].pop("from_")  # type: ignore
-            tmp["tickets"]["connect"]["from"] = bak  # type: ignore
-            return json.dumps(tmp)
+            bak = None
+            if "tickets" in tmp and tmp["tickets"]:
+                # check if tickets has attr connect
+                if hasattr(tmp["tickets"], "connect"):
+                    if tmp["tickets"].connect and "from" in tmp["tickets"].connect:
+                        bak = tmp["tickets"]["connect"]["from"]
+                        tmp["tickets"]["connect"].pop("from")
+                        tmp["tickets"]["connect"]["from_"] = bak
+            tmp_dict = {
+                key: value.to_dict() if hasattr(value, "to_dict") else value
+                for key, value in tmp.items()
+            }
+            return json.dumps(tmp_dict)
 
         def get(self):
             class_name = self.__class__
@@ -877,8 +888,43 @@ def create_challenge(folder: Path, session: edAPI, lesson: edAPI.Lesson):
         return
 
     mychallenge = slide.get_challenge()
-    mychallenge.settings = challenge.Settings()
-    mychallenge.tickets = challenge.Tickets()
+    mychallenge.settings = challenge.Settings(
+        None,
+        None,
+        None,
+        None,
+        None,
+        None,
+        None,
+        None,
+        None,
+        None,
+        None,
+        None,
+        None,
+        None,
+        None,
+        None,
+        None,
+    )
+    mychallenge.tickets = challenge.Tickets(
+        None,
+        None,
+        None,
+        None,
+        None,
+        None,
+        None,
+        None,
+        None,
+        None,
+        None,
+        None,
+        None,
+        None,
+        None,
+        None,
+    )
 
     grok_ed_map = (
         ("workspace", "scaffold"),
@@ -899,27 +945,109 @@ def create_challenge(folder: Path, session: edAPI, lesson: edAPI.Lesson):
                     rsync(str(wfile.absolute()), url, ["-r", "--exclude", "*.yaml"])
                     if makefile.exists():
                         rsync(str(makefile.absolute()), url, [])
-                    else:
+                    elif lesson.type == "c":
                         log.warning(f"Makefile does not exist at {makefile}")
                 else:
                     log.warning(
                         "Not uploading files because either DRY_RUN is set or ALLOW_RSYNC is off"
                     )
+
     # set the content to the contents of content.amber
     mychallenge.content = content
     mychallenge.explanation = solution_text
-    mychallenge.settings.build_command = "make all"  # type: ignore
-    mychallenge.settings.run_command = "make run"  # type: ignore
-    mychallenge.settings.check_command = "make run"  # type: ignore
-    mychallenge.tickets.run_standard.build_command = "make all"  # type: ignore
-    mychallenge.tickets.run_standard.run_command = "make run"  # type: ignore
+    if lesson.type == "c":
+        mychallenge.settings.build_command = "make all"  # type: ignore
+        mychallenge.settings.run_command = "make run"  # type: ignore
+        mychallenge.settings.check_command = "make run"  # type: ignore
+    elif lesson.type == "python":
+        mychallenge.settings.run_command = "python3 program.py"
+        mychallenge.settings.check_command = "python3 program.py"
 
     if not mychallenge.tickets:
-        mychallenge.tickets = challenge.Tickets()
+        mychallenge.tickets = challenge.Tickets(
+            None,
+            None,
+            None,
+            None,
+            None,
+            None,
+            None,
+            None,
+            None,
+            None,
+            None,
+            None,
+            None,
+            None,
+            None,
+            None,
+        )
+
     if not mychallenge.tickets.mark_standard:
-        mychallenge.tickets.mark_standard = challenge.Mark()
+        mychallenge.tickets.mark_standard = challenge.Mark(
+            None,
+            None,
+            None,
+            None,
+            None,
+            None,
+            None,
+            None,
+            None,
+            None,
+            None,
+            None,
+            None,
+            None,
+            None,
+            None,
+            None,
+            None,
+            None,
+            None,
+            None,
+            None,
+            None,
+            None,
+            None,
+            None,
+            None,
+            None,
+        )
+
     if not mychallenge.tickets.mark_standard.run_limit:
-        mychallenge.tickets.mark_standard.run_limit = challenge.MarkCustomRunLimit()
+        mychallenge.tickets.mark_standard.run_limit = challenge.MarkCustomRunLimit(
+            None, None
+        )
+    if not mychallenge.tickets.run_standard:
+        mychallenge.tickets.run_standard = challenge.Run(
+            None,
+            None,
+            None,
+            None,
+            None,
+            None,
+            None,
+            None,
+            None,
+            None,
+            None,
+            None,
+            None,
+            None,
+            None,
+            None,
+            None,
+            None,
+            None,
+            None,
+            None,
+            None,
+            None,
+        )
+
+    # mychallenge.tickets.run_standard.build_command = "make all"  # type: ignore
+    mychallenge.tickets.run_standard.run_command = "python program.py"  # type: ignore
 
     mychallenge.tickets.mark_standard.easy = False  # penalize whitespace infractions
     mychallenge.tickets.mark_standard.run_limit.pty = False  # make the output match up with the terminal output without having to interleave
@@ -1018,7 +1146,7 @@ def create_slides_and_challenges(
 ):
 
     # TODO: check if the slide already exists
-
+    log.info(f"Creating slides and challenges for {slide_folder}")
     i = 0
     while True:
         ref_path = Path(slide_folder / f"{i}.ref")
@@ -1056,7 +1184,8 @@ def create_lesson(
     if lesson_folder.name in existing_lessons:
         # check all the lessons with that name to see if they are under this module
         for l in existing_lessons[lesson_folder.name]:
-            # lesson = session.lesson(l).get()
+            l = session.lesson(l).get()
+
             if l.module_id == module.id:
                 lesson = l
                 log.warning(
@@ -1073,7 +1202,8 @@ def create_lesson(
         lesson.save()
 
     # create slides and challenges
-    create_slides_and_challenges(lesson_folder, session, lesson)
+    success = create_slides_and_challenges(lesson_folder, session, lesson)
+    return True
 
 
 def create_module(
@@ -1086,7 +1216,7 @@ def create_module(
 
     if len(module_json_file) == 0:
         log.info(f"Found no json files in {module_folder}")
-        return
+        return False
 
     if len(module_json_file) != 1:
         log.error(f"Found {len(module_json_file)} json files in {module_folder}")
@@ -1101,7 +1231,7 @@ def create_module(
         or "test" in module.name.lower()
     ):
         log.info(f"Skipping {module.name} entirely")
-        return
+        return False
     if module.name in existing_modules:
         log.info(f"Module {module.name} already exists, skipping")
         module = existing_modules[module.name][0]
@@ -1119,7 +1249,16 @@ def create_module(
         #     log.info(f"Skipping {module.name} entirely")
         #     continue
 
-        create_lesson(lesson_folder, session, module, existing_lessons=existing_lessons)
+        success = create_lesson(
+            lesson_folder, session, module, existing_lessons=existing_lessons
+        )
+        if success:
+            log.warning(
+                "Short circuiting for testing. Remove the break statement to run all lessons"
+            )
+            break
+
+    return True
 
 
 def create_all_modules(session: edAPI):
@@ -1131,16 +1270,26 @@ def create_all_modules(session: edAPI):
     for lesson in lessons:
         existing_lessons[lesson.title].append(lesson)
 
+    import ipdb
+
+    for lesson in lessons:
+        if lesson.title == "Untitled Lesson":
+            log.info(f"Deleting {lesson.title}")
+            session.lesson(lesson.id).delete()
+
     # for every folder in output/grok_exercises
     for module_folder in Path("output/modules").iterdir():
         if not module_folder.is_dir:
             continue
 
-        create_module(module_folder, session, existing_modules, existing_lessons)
-        log.info(
-            "Short circuiting for testing. Remove the continue statement to run all modules"
+        success = create_module(
+            module_folder, session, existing_modules, existing_lessons
         )
-        continue  # short circuit it for testing
+        if success:
+            log.info(
+                "Short circuiting for testing. Remove the break statement to run all modules"
+            )
+            break  # short circuit it for testing
 
 
 def main():
