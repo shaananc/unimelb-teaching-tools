@@ -55,6 +55,12 @@ import logging
 import ipdb
 from configparser import ConfigParser
 
+
+log = logging.getLogger("rich")
+
+config = ConfigParser()
+config.read("config.ini")
+
 FORMAT = "%(message)s"
 log_level = config.get("GLOBAL", "log_level", fallback="DEBUG")
 logging.basicConfig(
