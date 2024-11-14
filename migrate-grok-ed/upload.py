@@ -53,6 +53,7 @@ from retrying import retry
 from rich.logging import RichHandler
 import logging
 import ipdb
+from configparser import ConfigParser
 
 FORMAT = "%(message)s"
 logging.basicConfig(
@@ -61,8 +62,12 @@ logging.basicConfig(
 
 log = logging.getLogger("rich")
 
-ED_COURSE_ID: str = "16527"  # playground
-# ED_COURSE_ID : str = '10507' -- real class
+config = ConfigParser()
+config.read(
+    "/Users/shaananc/Library/Mobile Documents/com~apple~CloudDocs/teaching/unimelblib/migrate-grok-ed/config.ini"
+)
+
+ED_COURSE_ID = config.get("ED", "ed_course_id")
 
 DRY_RUN = False
 DRY_RUN_ALLOW_GETS = True
@@ -328,6 +333,10 @@ class edAPI:
         is_survey: Optional[bool | None]
         passage: Optional[str | None]
         mode: Optional[str | None]
+        auto_points: Optional[bool | None]
+        rubric_points: Optional[int | None]
+        lesson_markable_id: Optional[int | None]
+        rubric_id: Optional[int | None]
 
         def save(self):
             ffiles = {"slide": (None, json.dumps(self.dump()))}
@@ -365,6 +374,9 @@ class edAPI:
             self.is_survey: Optional[bool | None]
             self.passage: Optional[str | None]
             self.mode: Optional[str | None]
+            self.auto_points: Optional[bool | None]
+            self.rubric_points: Optional[int | None]
+            self.lesson_markable_id: Optional[int | None]
             return self
 
         def create(self):
@@ -432,7 +444,9 @@ class edAPI:
         release_quiz_correctness_only: Optional[bool | None] = None
         release_quiz_solutions: Optional[bool | None] = None
         reopen_submissions: Optional[bool | None] = None
-        settings: Optional[lesson.Settings | None] = None
+        settings: Optional[lesson.Settings | None] = (
+            None  # Adjusted for `lesson.Settings` if type is defined elsewhere
+        )
         solutions_at: Optional[datetime | None] = None
         state: Optional[str | None] = None
         timer_duration: Optional[int | None] = None
@@ -453,7 +467,28 @@ class edAPI:
         number: Optional[int | None] = None
         attempted_at: Optional[datetime | None] = None
         id: Optional[int | None] = None
-        slides: Optional[List[slide.SlideDataClass] | None] = None
+        slides: Optional[List[slide.SlideDataClass] | None] = (
+            None  # Adjusted for `slide.SlideDataClass` if type is defined elsewhere
+        )
+
+        # Newly added fields
+        release_feedback_while_active: Optional[bool | None] = None
+        kind: Optional[str | None] = None
+        grade_passback_auto_send: Optional[bool | None] = None
+        clean_attempts: Optional[bool | None] = None
+        require_user_override: Optional[bool | None] = None
+        openable_without_attempt: Optional[bool | None] = None
+        attempt_id: Optional[int | None] = None
+        effective_locked_at: Optional[datetime | None] = None
+        submitted_at: Optional[datetime | None] = None
+        effective_available_at: Optional[datetime | None] = None
+        attempts: Optional[int | None] = None
+        effective_due_at: Optional[datetime | None] = None
+        release_feedback: Optional[bool | None] = None
+        grade_passback_mode: Optional[str | None] = None
+        attempts_remaining: Optional[int | None] = None
+        grade_passback_scale_to: Optional[int | None] = None
+        password_one_time: Optional[bool | None] = None
 
         def create(self):
             return super().create(f"courses/{self.class_id}/{self.url_suffix}")
@@ -510,6 +545,24 @@ class edAPI:
             self.attempted_at: Optional[datetime | None] = None
             self.id: Optional[int | None] = sid
             self.slides: Optional[List[slide.SlideDataClass] | None] = None
+            # Newly added fields
+            self.release_feedback_while_active: Optional[bool | None] = None
+            self.kind: Optional[str | None] = None
+            self.grade_passback_auto_send: Optional[bool | None] = None
+            self.clean_attempts: Optional[bool | None] = None
+            self.require_user_override: Optional[bool | None] = None
+            self.openable_without_attempt: Optional[bool | None] = None
+            self.attempt_id: Optional[int | None] = None
+            self.effective_locked_at: Optional[datetime | None] = None
+            self.submitted_at: Optional[datetime | None] = None
+            self.effective_available_at: Optional[datetime | None] = None
+            self.attempts: Optional[int | None] = None
+            self.effective_due_at: Optional[datetime | None] = None
+            self.release_feedback: Optional[bool | None] = None
+            self.grade_passback_mode: Optional[str | None] = None
+            self.attempts_remaining: Optional[int | None] = None
+            self.grade_passback_scale_to: Optional[int | None] = None
+            self.password_one_time: Optional[bool | None] = None
 
             return self
 
@@ -521,6 +574,7 @@ class edAPI:
             new_modules = []
             lesson_schema = marshmallow_dataclass.class_schema(edAPI.Lesson)()
             for lesson in response["lessons"]:
+
                 new_lessons.append(lesson_schema.load(lesson))
 
             module_schema = marshmallow_dataclass.class_schema(edAPI.Module)()
@@ -686,6 +740,10 @@ class edAPI:
 
     def slide(self, sid=None):
         return self.Slide(
+            None,
+            None,
+            None,
+            None,
             None,
             None,
             None,
@@ -975,6 +1033,9 @@ def create_module(
     module_json = json.loads(module_json_file.read_text())
 
     module.name = module_json["title"]
+    if "exam" in module.name.lower() or "project" in module.name.lower():
+        log.info(f"Skipping {module.name} entirely")
+        return
     if module.name in existing_modules:
         log.info(f"Module {module.name} already exists, skipping")
         module = existing_modules[module.name][0]
