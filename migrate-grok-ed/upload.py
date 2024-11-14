@@ -1067,6 +1067,7 @@ def create_lesson(
     if still_not_seen == True:
         lesson.title = lesson_folder.name
         lesson.create()
+        lesson.title = lesson_folder.name
         lesson.type = config.get("ED", "lesson_type", fallback="python")
         lesson.module_id = module.id
         lesson.save()
