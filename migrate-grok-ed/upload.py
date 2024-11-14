@@ -121,6 +121,11 @@ class edAPI:
             url_suffix="",
             include_sid=True,
         ):
+
+            if DRY_RUN:
+                log.info(f"DRY RUN: {method} {self.base_url}/{url_suffix}")
+                return {}
+
             if not hasattr(self, "base_url") or not self.base_url:
                 log.error("No base_url set!")
                 raise Exception("No base_url set!")
@@ -135,7 +140,7 @@ class edAPI:
 
             if include_sid:
                 if not hasattr(self, "id") or not self.id:
-                    log.error("No sid set!")
+                    log.error("No server-side ID (sid) set for the API request!")
                     raise Exception("No sid set!")
                 else:
                     full_url = full_url + "/" + str(self.id)
@@ -202,7 +207,12 @@ class edAPI:
             schema = marshmallow_dataclass.class_schema(class_name)()
             data = self.get_internal()
             class_name = self.__class__.__name__
-            data = data[class_name.lower()]
+
+            try:
+                data = data[class_name.lower()]
+            except KeyError:
+                log.error("Warning - no data returned, object not updated")
+                return self
 
             obj: edAPI.EDAPI_OBJ = schema.load(data)  # type: ignore
             obj.base_url = self.base_url
@@ -235,6 +245,8 @@ class edAPI:
             return self.api_request("PATCH", data=data, json_data=json_data)
 
         def post(self, data=None, json_data=None, include_sid=True, url_suffix=""):
+            import ipdb
+
             if json_data:
                 json_data = self.wrap(json_data)
             response = self.api_request(
@@ -246,6 +258,7 @@ class edAPI:
             )
             if response:
                 self.id = self.unwrap(response)["id"]
+
             return response
 
         def dump(self):
@@ -275,9 +288,13 @@ class edAPI:
             schema = marshmallow_dataclass.class_schema(class_name)()
 
             class_name = self.__class__.__name__
-            data = response[class_name.lower()]
-            obj = schema.load(data)
-            self.__dict__.update(obj.__dict__)
+            try:
+                data = response[class_name.lower()]
+                obj = schema.load(data)
+                self.__dict__.update(obj.__dict__)
+            except KeyError:
+                log.error("Warning - no data returned, object not updated")
+
             return self
 
     @dataclass
@@ -393,9 +410,15 @@ class edAPI:
             schema = marshmallow_dataclass.class_schema(class_name)()
 
             class_name = self.__class__.__name__
-            data = response[class_name.lower()]
-            obj = schema.load(data)
-            self.__dict__.update(obj.__dict__)
+
+            try:
+                data = response[class_name.lower()]
+
+                obj = schema.load(data)
+                self.__dict__.update(obj.__dict__)
+            except KeyError:
+                log.error("Warning - no data returned, object not updated")
+
             return self
 
         def put(self, data=None, json_data=None, files=None):
@@ -408,16 +431,21 @@ class edAPI:
             challenge = edAPI.Challenge(None, None, None, None, None, None, None, None, None, None, None, None, None, None, None, None, None, None, None, None, None, None, None, None, None, None, None, None, None, None, None, None, None, None, None, None, None, None, None, None, None, None, None, None, None, None, None, None, None, None).new(self.base_url, self.token, self.challenge_id)  # type: ignore
             data = challenge.get_internal()
             class_name = edAPI.Challenge.__name__
-            data = data[class_name.lower()]
-            if "tickets" in data and "connect" in data["tickets"]:
-                for ticket in data["tickets"]["connect"]:
-                    if "from" in ticket:
-                        bak = data["tickets"]["connect"]["from"]
-                        del data["tickets"]["connect"]["from"]
-                        data["tickets"]["connect"]["from_"] = bak
-                        break
+            try:
+                data = data[class_name.lower()]
 
-            obj: edAPI.Challenge = schema.load(data)  # type: ignore
+                if "tickets" in data and "connect" in data["tickets"]:
+                    for ticket in data["tickets"]["connect"]:
+                        if "from" in ticket:
+                            bak = data["tickets"]["connect"]["from"]
+                            del data["tickets"]["connect"]["from"]
+                            data["tickets"]["connect"]["from_"] = bak
+                            break
+
+                obj: edAPI.Challenge = schema.load(data)  # type: ignore
+            except KeyError:
+                log.error("Warning - no data returned, object not updated")
+                return None
             obj.base_url = self.base_url
             obj.token = self.token
             obj.id = self.challenge_id
@@ -446,7 +474,7 @@ class edAPI:
         release_quiz_correctness_only: Optional[bool | None] = None
         release_quiz_solutions: Optional[bool | None] = None
         reopen_submissions: Optional[bool | None] = None
-        settings: Optional[lesson.Settings | None] = (
+        settings: Optional[Any | None] = (
             None  # Adjusted for `lesson.Settings` if type is defined elsewhere
         )
         solutions_at: Optional[datetime | None] = None
@@ -525,7 +553,7 @@ class edAPI:
             self.release_quiz_correctness_only: bool | None = None
             self.release_quiz_solutions: bool | None = None
             self.reopen_submissions: bool | None = None
-            self.settings: lesson.Settings | None = None
+            self.settings: Any | None = None
             self.solutions_at: datetime | None = None
             self.state: str | None = None
             self.timer_duration: int | None = None
@@ -575,6 +603,9 @@ class edAPI:
             new_lessons = []
             new_modules = []
             lesson_schema = marshmallow_dataclass.class_schema(edAPI.Lesson)()
+            if not response and DRY_RUN:
+                return new_lessons, new_modules
+
             for lesson in response["lessons"]:
 
                 new_lessons.append(lesson_schema.load(lesson))
@@ -841,6 +872,8 @@ def create_challenge(folder: Path, session: edAPI, lesson: edAPI.Lesson):
         return
 
     mychallenge = slide.get_challenge()
+    mychallenge.settings = challenge.Settings()
+    mychallenge.tickets = challenge.Tickets()
 
     grok_ed_map = (
         ("workspace", "scaffold"),
@@ -855,7 +888,9 @@ def create_challenge(folder: Path, session: edAPI, lesson: edAPI.Lesson):
             if not wfile.name.endswith(".yaml"):
                 url = f"challenge.{mychallenge.id}.{ed_folder}@git.edstem.org:"
                 if not DRY_RUN and ALLOW_RSYNC:
-                    log.info(f"Uploading {wfile} to {url}")
+                    log.info(
+                        f"Uploading {wfile} to {url} as part of module {mychallenge.id} and lesson {lesson.id}"
+                    )
                     rsync(str(wfile.absolute()), url, ["-r", "--exclude", "*.yaml"])
                     if makefile.exists():
                         rsync(str(makefile.absolute()), url, [])
@@ -1027,7 +1062,7 @@ def create_lesson(
     if still_not_seen == True:
         lesson.title = lesson_folder.name
         lesson.create()
-        lesson.type = "c"
+        lesson.type = config.get("ED", "lesson_type", fallback="python")
         lesson.module_id = module.id
         lesson.save()
 
