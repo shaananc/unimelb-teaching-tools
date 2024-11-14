@@ -1,17 +1,21 @@
-
-
+from __future__ import annotations
 from dataclasses import dataclass
 from typing import List, Any, Optional, Dict
 from datetime import datetime
+import upload
 
 
 class Passback:
     max_automatic_score: int
     scoring_mode: str
+    scale_to: Optional[int]
 
-    def __init__(self, max_automatic_score: int, scoring_mode: str) -> None:
+    def __init__(
+        self, max_automatic_score: int, scoring_mode: str, scale_to: Optional[int]
+    ) -> None:
         self.max_automatic_score = max_automatic_score
         self.scoring_mode = scoring_mode
+        self.scale_to = scale_to
 
 
 class Points:
@@ -35,12 +39,15 @@ class Settings:
     run_command: Optional[str]
     services: Optional[List[str]]
     terminal_command: Optional[str]
-
+    allow_submit_after_marking_limit: Optional[bool]
+    attempt_limit_interval: Optional[int]
+    max_submissions_per_interval: Optional[int]
 
 
 class PtySize:
     cols: Optional[int]
     rows: Optional[int]
+
 
 class BoxLimitClass:
     autospawn_vnc: Optional[bool]
@@ -56,6 +63,7 @@ class BoxLimitClass:
 class Course:
     course_id: Optional[int]
     course_name: Optional[str]
+    self_serve_course_files: Optional[bool]
 
 
 class User:
@@ -72,10 +80,11 @@ class WorkspaceSettings:
     rstudio_layout: Optional[str]
 
 
-class Connect():
+class Connect:
     box_limit: Optional[BoxLimitClass]
     course: Optional[Course]
     empty: Optional[bool]
+    course: Optional[Course]
     connect_from: Optional[str]
     inactivity_timeout: Optional[int]
     no_quota: Optional[bool]
@@ -92,6 +101,9 @@ class Connect():
     workspace: Optional[Workspace]
     workspace_settings: Optional[WorkspaceSettings]
     from_: Optional[str]
+    lesson_id: Optional[int]
+    challenge: Optional[upload.edAPI.Challenge]
+
 
 class BoxLimit:
     autospawn_vnc: Optional[bool]
@@ -107,22 +119,21 @@ class BoxLimit:
     wall_time: Optional[int]
 
 
-class BuildLimitClass():
+class BuildLimitClass:
     pty_size: Optional[PtySize]
 
 
-
-class MarkCustomRunLimit():
+class MarkCustomRunLimit:
     pty: Optional[bool]
     pty_size: Optional[PtySize]
 
 
-class Source():
+class Source:
     type: Optional[str]
     file: Optional[str]
 
 
-class Check():
+class Check:
     acceptable_line_errors: Optional[int]
     expect_path: Optional[str]
     source: Optional[Source]
@@ -140,14 +151,13 @@ class Check():
     source: Optional[Source]
 
 
-
-
-class TestcaseRunLimit():
+class TestcaseRunLimit:
     cpu_time: Optional[int]
     wall_time: Optional[int]
     pty_size: Optional[PtySize]
 
-class Testcase():
+
+class Testcase:
     checks: Optional[List[Check]]
     hidden: Optional[bool]
     name: Optional[str]
@@ -163,9 +173,7 @@ class Testcase():
     extra_paths: Optional[List[str]]
 
 
-
-
-class Mark():
+class Mark:
     attempt: Optional[Workspace]
     box_limit: Optional[BoxLimit]
     build_command: Optional[str]
@@ -190,10 +198,13 @@ class Mark():
     mark_all: Optional[Optional[bool]]
     overlay: Optional[Optional[bool]]
     testcases: Optional[List[Testcase]]
+    challenge: Optional[upload.edAPI.Challenge]
+    lesson_id: Optional[int]
+    lesson_slide_id: Optional[int]
+    source: Optional[str]
 
-   
 
-class MarkJupyter():
+class MarkJupyter:
     attempt: Optional[Workspace]
     box_limit: Optional[BoxLimitClass]
     build_command: Optional[str]
@@ -210,9 +221,13 @@ class MarkJupyter():
     staff_tag: Optional[bool]
     testcase_path: Optional[str]
     user: Optional[User]
+    challenge: Optional[upload.edAPI.Challenge]
+    lesson_id: Optional[int]
+    lesson_slide_id: Optional[int]
+    source: Optional[str]
 
 
-class MarkPostgres():
+class MarkPostgres:
     attempt: Optional[Workspace]
     attempt_path: Optional[str]
     box_limit: Optional[BoxLimit]
@@ -234,9 +249,13 @@ class MarkPostgres():
     testcases: Optional[List[str]]
     type: Optional[str]
     user: Optional[User]
+    challenge: Optional[upload.edAPI.Challenge]
+    lesson_id: Optional[int]
+    lesson_slide_id: Optional[int]
+    source: Optional[str]
 
 
-class MarkUnit():
+class MarkUnit:
     additional_classpath: Optional[str]
     attempt: Optional[Workspace]
     box_limit: Optional[BoxLimit]
@@ -254,10 +273,13 @@ class MarkUnit():
     testcase_path: Optional[str]
     type: Optional[str]
     user: Optional[User]
+    challenge: Optional[upload.edAPI.Challenge]
+    lesson_id: Optional[int]
+    lesson_slide_id: Optional[int]
+    source: Optional[str]
 
 
-
-class MarkWeb():
+class MarkWeb:
     attempt: Optional[Workspace]
     box_limit: Optional[BoxLimitClass]
     course: Optional[Course]
@@ -274,9 +296,13 @@ class MarkWeb():
     staff_tag: Optional[bool]
     testcases: Optional[List[str]]
     user: Optional[User]
+    challenge: Optional[upload.edAPI.Challenge]
+    lesson_id: Optional[int]
+    lesson_slide_id: Optional[int]
+    source: Optional[str]
 
 
-class Run():
+class Run:
     attempt: Optional[Workspace]
     box_limit: Optional[BoxLimit]
     build_command: Optional[str]
@@ -296,10 +322,13 @@ class Run():
     staff_tag: Optional[bool]
     test_command: Optional[str]
     user: Optional[User]
+    challenge: Optional[upload.edAPI.Challenge]
+    lesson_id: Optional[int]
+    lesson_slide_id: Optional[int]
+    source: Optional[str]
 
 
-
-class RunPostgres():
+class RunPostgres:
     attempt: Optional[Workspace]
     attempt_path: Optional[str]
     box_limit: Optional[BoxLimit]
@@ -314,10 +343,13 @@ class RunPostgres():
     staff_tag: Optional[bool]
     type: Optional[str]
     user: Optional[User]
+    challenge: Optional[upload.edAPI.Challenge]
+    lesson_id: Optional[int]
+    lesson_slide_id: Optional[int]
+    source: Optional[str]
 
 
-
-class RunStandard():
+class RunStandard:
     attempt: Optional[Workspace]
     box_limit: Optional[BoxLimit]
     build_command: Optional[str]
@@ -337,10 +369,13 @@ class RunStandard():
     staff_tag: Optional[bool]
     test_command: Optional[str]
     user: Optional[User]
+    challenge: Optional[upload.edAPI.Challenge]
+    lesson_id: Optional[int]
+    lesson_slide_id: Optional[int]
+    source: Optional[str]
 
 
-
-class Tickets():
+class Tickets:
     connect: Optional[Connect]
     mark_custom: Optional[Mark]
     mark_jupyter: Optional[MarkJupyter]
@@ -352,4 +387,8 @@ class Tickets():
     run_postgres: Optional[RunPostgres]
     run_standard: Optional[RunStandard]
     run_unit: Optional[Run]
-
+    lesson_id: Optional[int]
+    from_secondary: Optional[bool]
+    source: Optional[str]
+    challenge: Optional[upload.edAPI.Challenge]
+    lesson_slide_id: Optional[int]

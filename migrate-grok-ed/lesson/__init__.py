@@ -1,3 +1,4 @@
+from __future__ import annotations
 from dataclasses import dataclass
 from datetime import datetime
 from typing import List, Any, Optional
@@ -8,13 +9,16 @@ class Settings:
     quiz_mode: str
     quiz_question_number_style: str
 
-    def __init__(self, quiz_active_status: str, quiz_mode: str, quiz_question_number_style: str) -> None:
+    def __init__(
+        self, quiz_active_status: str, quiz_mode: str, quiz_question_number_style: str
+    ) -> None:
         self.quiz_active_status = quiz_active_status
         self.quiz_mode = quiz_mode
         self.quiz_question_number_style = quiz_question_number_style
 
+
 @dataclass
-class SlideDataClass():
+class SlideDataClass:
     original_id: Optional[int | None]
     lesson_id: Optional[int | None]
     user_id: Optional[int | None]
