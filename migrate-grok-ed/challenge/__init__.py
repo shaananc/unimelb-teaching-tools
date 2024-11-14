@@ -1,11 +1,13 @@
 from __future__ import annotations
-from dataclasses import dataclass
+from dataclasses import asdict, dataclass
 from typing import List, Any, Optional, Dict
 from datetime import datetime
+import json
 
 temp_annotation = Any  # temp_annotation
 
 
+@dataclass
 class Passback:
     max_automatic_score: int
     scoring_mode: str
@@ -18,11 +20,26 @@ class Passback:
         self.scoring_mode = scoring_mode
         self.scale_to = scale_to
 
+    def to_dict(self):
+        return asdict(self)
 
+    def to_json(self):
+        return json.dumps(asdict(self))
+
+
+@dataclass
 class Points:
     loss_amount: Optional[int]
     loss_every: Optional[int]
     loss_threshold: Optional[int]
+
+    def to_json(self):
+        # Serialize by converting to a dictionary and handling nested structures
+        return json.dumps(asdict(self))
+
+    def to_dict(self):
+        # Serialize by converting to a dictionary and handling nested structures
+        return asdict(self)
 
 
 @dataclass
@@ -44,6 +61,14 @@ class Settings:
     allow_submit_after_marking_limit: Optional[bool]
     attempt_limit_interval: Optional[int]
     max_submissions_per_interval: Optional[int]
+
+    def to_json(self):
+        # Serialize by converting to a dictionary and handling nested structures
+        return json.dumps(asdict(self))
+
+    def to_dict(self):
+        # Serialize by converting to a dictionary and handling nested structures
+        return asdict(self)
 
 
 class PtySize:
@@ -82,6 +107,7 @@ class WorkspaceSettings:
     rstudio_layout: Optional[str]
 
 
+@dataclass
 class Connect:
     box_limit: Optional[BoxLimitClass]
     course: Optional[Course]
@@ -106,7 +132,16 @@ class Connect:
     lesson_id: Optional[int]
     challenge: Optional[temp_annotation]
 
+    def to_json(self):
+        # Serialize by converting to a dictionary and handling nested structures
+        return json.dumps(asdict(self))
 
+    def to_dict(self):
+        # Serialize by converting to a dictionary and handling nested structures
+        return asdict(self)
+
+
+@dataclass
 class BoxLimit:
     autospawn_vnc: Optional[bool]
     cpu_time: Optional[int]
@@ -120,14 +155,40 @@ class BoxLimit:
     vnc_width: Optional[int]
     wall_time: Optional[int]
 
+    def to_json(self):
+        # Serialize by converting to a dictionary and handling nested structures
+        return json.dumps(asdict(self))
 
+    def to_dict(self):
+        # Serialize by converting to a dictionary and handling nested structures
+        return asdict(self)
+
+
+@dataclass
 class BuildLimitClass:
     pty_size: Optional[PtySize]
 
+    def to_json(self):
+        # Serialize by converting to a dictionary and handling nested structures
+        return json.dumps(asdict(self))
 
+    def to_dict(self):
+        # Serialize by converting to a dictionary and handling nested structures
+        return asdict(self)
+
+
+@dataclass
 class MarkCustomRunLimit:
     pty: Optional[bool]
     pty_size: Optional[PtySize]
+
+    def to_json(self):
+        # Serialize by converting to a dictionary and handling nested structures
+        return json.dumps(asdict(self))
+
+    def to_dict(self):
+        # Serialize by converting to a dictionary and handling nested structures
+        return asdict(self)
 
 
 @dataclass
@@ -308,6 +369,7 @@ class MarkWeb:
     source: Optional[str]
 
 
+@dataclass
 class Run:
     attempt: Optional[Workspace]
     box_limit: Optional[BoxLimit]
@@ -399,3 +461,11 @@ class Tickets:
     source: Optional[str]
     challenge: Optional[temp_annotation]
     lesson_slide_id: Optional[int]
+
+    def to_json(self):
+        # Serialize by converting to a dictionary and handling nested structures
+        return json.dumps(asdict(self))
+
+    def to_dict(self):
+        # Serialize by converting to a dictionary and handling nested structures
+        return asdict(self)
