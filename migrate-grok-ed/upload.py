@@ -56,8 +56,9 @@ import ipdb
 from configparser import ConfigParser
 
 FORMAT = "%(message)s"
+log_level = config.get("GLOBAL", "log_level", fallback="DEBUG")
 logging.basicConfig(
-    level="INFO", format=FORMAT, datefmt="[%X]", handlers=[RichHandler()]
+    level=log_level, format=FORMAT, datefmt="[%X]", handlers=[RichHandler()]
 )
 
 log = logging.getLogger("rich")
@@ -182,8 +183,13 @@ class edAPI:
                 try:
                     response.raise_for_status()
                 except requests.exceptions.HTTPError as e:
+                    if method == "DELETE" and response.status_code == 410:
+                        log.info("Object deleted")
+                        return response.json()
                     try:
-                        log.error(response.json())
+                        # log the response in json and the status code combined with the status code first
+                        log.error(f"HTTP {response.status_code}: {response.json()}")
+
                     except requests.exceptions.JSONDecodeError:
                         pass
                     raise e
@@ -1131,6 +1137,10 @@ def create_all_modules(session: edAPI):
             continue
 
         create_module(module_folder, session, existing_modules, existing_lessons)
+        log.info(
+            "Short circuiting for testing. Remove the continue statement to run all modules"
+        )
+        continue  # short circuit it for testing
 
 
 def main():
