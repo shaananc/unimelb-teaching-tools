@@ -402,8 +402,10 @@ class edAPI:
             return self.api_request("PUT", data=data, json_data=json_data, files=files)
 
         def get_challenge(self):
+            edAPI.Challenge()
+
             schema = marshmallow_dataclass.class_schema(edAPI.Challenge)()
-            challenge = edAPI.Challenge(None, None, None, None, None, None, None, None, None, None, None, None, None, None, None, None, None, None, None, None, None, None, None, None, None, None, None, None, None, None, None, None, None, None, None, None, None, None, None, None, None, None).new(self.base_url, self.token, self.challenge_id)  # type: ignore
+            challenge = edAPI.Challenge(None, None, None, None, None, None, None, None, None, None, None, None, None, None, None, None, None, None, None, None, None, None, None, None, None, None, None, None, None, None, None, None, None, None, None, None, None, None, None, None, None, None, None, None, None, None, None, None, None, None).new(self.base_url, self.token, self.challenge_id)  # type: ignore
             data = challenge.get_internal()
             class_name = edAPI.Challenge.__name__
             data = data[class_name.lower()]
@@ -614,11 +616,11 @@ class edAPI:
         score: Optional[int | None]
         sequential_completion: Optional[bool | None]
         session: Optional[str | None]
-        settings: Optional[challenge.Settings | None]
+        settings: Optional[Any | None]
         solution_hash: Optional[str | None]
         status: Optional[str | None]
         testbase_hash: Optional[str | None]
-        tickets: Optional[challenge.Tickets | None]
+        tickets: Optional[Any | None]
         tutorial_regex: Optional[str | None]
         type: Optional[str | None]
         unavailable_after_completion: Optional[bool | None]
@@ -626,6 +628,15 @@ class edAPI:
         title: Optional[str | None]
         number: Optional[int | None]
         original_id: Optional[int | None]
+
+        attempts_remaining: Optional[int | None]
+        rubric_points: Optional[int | None]
+        auto_points: Optional[bool | None]
+        earliest_submission_time: Optional[datetime | None]
+        lesson_markable_id: Optional[int | None]
+        extra_attempts: Optional[int | None]
+        attempts_within_last_interval: Optional[int | None]
+        rubric_id: Optional[int | None]
 
         def json_str(self):
             tmp = super().dump()
@@ -700,6 +711,16 @@ class edAPI:
             self.unavailable_after_completion: bool | None = None
             self.updated_at: datetime | None = None
             self.title: str | None = None
+
+            self.attempts_remaining: Optional[int | None] = None
+            self.rubric_points: Optional[int | None] = None
+            self.auto_points: Optional[bool | None] = None
+            self.earliest_submission_time: Optional[datetime | None] = None
+            self.lesson_markable_id: Optional[int | None] = None
+            self.extra_attempts: Optional[int | None] = None
+            self.attempts_within_last_interval: Optional[int | None] = None
+            self.rubric_id: Optional[int | None] = None
+
             return self
 
         def save(self):
@@ -1033,7 +1054,11 @@ def create_module(
     module_json = json.loads(module_json_file.read_text())
 
     module.name = module_json["title"]
-    if "exam" in module.name.lower() or "project" in module.name.lower():
+    if (
+        "exam" in module.name.lower()
+        or "project" in module.name.lower()
+        or "test" in module.name.lower()
+    ):
         log.info(f"Skipping {module.name} entirely")
         return
     if module.name in existing_modules:
