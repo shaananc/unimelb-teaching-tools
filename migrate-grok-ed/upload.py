@@ -61,13 +61,6 @@ logging.basicConfig(
     level=log_level, format=FORMAT, datefmt="[%X]", handlers=[RichHandler()]
 )
 
-log = logging.getLogger("rich")
-
-config = ConfigParser()
-config.read(
-    "/Users/shaananc/Library/Mobile Documents/com~apple~CloudDocs/teaching/unimelblib/migrate-grok-ed/config.ini"
-)
-
 ED_COURSE_ID = config.get("ED", "ed_course_id")
 
 DRY_RUN = False
