@@ -25,6 +25,7 @@ class Points:
     loss_threshold: Optional[int]
 
 
+@dataclass
 class Settings:
     build_command: Optional[str]
     check_command: Optional[str]
@@ -129,6 +130,7 @@ class MarkCustomRunLimit:
     pty_size: Optional[PtySize]
 
 
+@dataclass
 class Source:
     type: Optional[str]
     file: Optional[str]
