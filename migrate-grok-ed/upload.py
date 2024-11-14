@@ -1075,7 +1075,13 @@ def create_challenge(folder: Path, session: edAPI, lesson: edAPI.Lesson):
         )
 
         testcase.name = grok_test.label
-        testcase.run_command = "./program"
+
+        # if it's c
+        if lesson.type == "c":
+            testcase.run_command = "./program"
+        elif lesson.type == "python":
+            testcase.run_command = "python3 program.py"
+
         if (folder / "tests" / relative_dir / "stdin").exists():
             testcase.stdin_path = str(relative_dir / "stdin")
         else:
