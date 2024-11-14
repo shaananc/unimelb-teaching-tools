@@ -29,3 +29,19 @@ class SlideDataClass:
     is_survey: Optional[bool | None]
     passage: Optional[str | None]
     mode: Optional[str | None]
+    rubric_points: Optional[int | None]
+    lesson_markable_id: Optional[int | None]
+    auto_points: Optional[int | None]
+    rubric_id: Optional[int | None]
+
+
+@dataclass
+class SlideSummaryDataClass:
+    id: Optional[int | None]
+    is_hidden: Optional[bool | None]
+    rubric_points: Optional[int | None]
+    auto_points: Optional[int | None]
+    scoring_mode: Optional[str | None]
+    scale_to: Optional[int | None]
+    scale_to_auto: Optional[int | None]
+    scale_to_rubric: Optional[int | None]

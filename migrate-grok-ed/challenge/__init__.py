@@ -2,7 +2,8 @@ from __future__ import annotations
 from dataclasses import dataclass
 from typing import List, Any, Optional, Dict
 from datetime import datetime
-import upload
+
+temp_annotation = Any  # temp_annotation
 
 
 class Passback:
@@ -102,7 +103,7 @@ class Connect:
     workspace_settings: Optional[WorkspaceSettings]
     from_: Optional[str]
     lesson_id: Optional[int]
-    challenge: Optional[upload.edAPI.Challenge]
+    challenge: Optional[temp_annotation]
 
 
 class BoxLimit:
@@ -133,6 +134,7 @@ class Source:
     file: Optional[str]
 
 
+@dataclass
 class Check:
     acceptable_line_errors: Optional[int]
     expect_path: Optional[str]
@@ -157,6 +159,7 @@ class TestcaseRunLimit:
     pty_size: Optional[PtySize]
 
 
+@dataclass
 class Testcase:
     checks: Optional[List[Check]]
     hidden: Optional[bool]
@@ -173,6 +176,7 @@ class Testcase:
     extra_paths: Optional[List[str]]
 
 
+@dataclass
 class Mark:
     attempt: Optional[Workspace]
     box_limit: Optional[BoxLimit]
@@ -198,7 +202,7 @@ class Mark:
     mark_all: Optional[Optional[bool]]
     overlay: Optional[Optional[bool]]
     testcases: Optional[List[Testcase]]
-    challenge: Optional[upload.edAPI.Challenge]
+    challenge: Optional[temp_annotation]
     lesson_id: Optional[int]
     lesson_slide_id: Optional[int]
     source: Optional[str]
@@ -221,7 +225,7 @@ class MarkJupyter:
     staff_tag: Optional[bool]
     testcase_path: Optional[str]
     user: Optional[User]
-    challenge: Optional[upload.edAPI.Challenge]
+    challenge: Optional[temp_annotation]
     lesson_id: Optional[int]
     lesson_slide_id: Optional[int]
     source: Optional[str]
@@ -249,7 +253,7 @@ class MarkPostgres:
     testcases: Optional[List[str]]
     type: Optional[str]
     user: Optional[User]
-    challenge: Optional[upload.edAPI.Challenge]
+    challenge: Optional[temp_annotation]
     lesson_id: Optional[int]
     lesson_slide_id: Optional[int]
     source: Optional[str]
@@ -273,7 +277,7 @@ class MarkUnit:
     testcase_path: Optional[str]
     type: Optional[str]
     user: Optional[User]
-    challenge: Optional[upload.edAPI.Challenge]
+    challenge: Optional[temp_annotation]
     lesson_id: Optional[int]
     lesson_slide_id: Optional[int]
     source: Optional[str]
@@ -296,7 +300,7 @@ class MarkWeb:
     staff_tag: Optional[bool]
     testcases: Optional[List[str]]
     user: Optional[User]
-    challenge: Optional[upload.edAPI.Challenge]
+    challenge: Optional[temp_annotation]
     lesson_id: Optional[int]
     lesson_slide_id: Optional[int]
     source: Optional[str]
@@ -322,7 +326,7 @@ class Run:
     staff_tag: Optional[bool]
     test_command: Optional[str]
     user: Optional[User]
-    challenge: Optional[upload.edAPI.Challenge]
+    challenge: Optional[temp_annotation]
     lesson_id: Optional[int]
     lesson_slide_id: Optional[int]
     source: Optional[str]
@@ -343,7 +347,7 @@ class RunPostgres:
     staff_tag: Optional[bool]
     type: Optional[str]
     user: Optional[User]
-    challenge: Optional[upload.edAPI.Challenge]
+    challenge: Optional[temp_annotation]
     lesson_id: Optional[int]
     lesson_slide_id: Optional[int]
     source: Optional[str]
@@ -369,12 +373,13 @@ class RunStandard:
     staff_tag: Optional[bool]
     test_command: Optional[str]
     user: Optional[User]
-    challenge: Optional[upload.edAPI.Challenge]
+    challenge: Optional[temp_annotation]
     lesson_id: Optional[int]
     lesson_slide_id: Optional[int]
     source: Optional[str]
 
 
+@dataclass
 class Tickets:
     connect: Optional[Connect]
     mark_custom: Optional[Mark]
@@ -390,5 +395,5 @@ class Tickets:
     lesson_id: Optional[int]
     from_secondary: Optional[bool]
     source: Optional[str]
-    challenge: Optional[upload.edAPI.Challenge]
+    challenge: Optional[temp_annotation]
     lesson_slide_id: Optional[int]
