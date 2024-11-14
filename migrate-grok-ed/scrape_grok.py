@@ -1,5 +1,5 @@
 from json import JSONDecodeError
-from typing import List, Dict, Callable, Any
+from typing import Iterable, List, Dict, Callable, Any
 
 """
 This script scrapes problems and modules from the Grok Learning platform and exports them to a local directory.
@@ -381,7 +381,7 @@ def export_problem(problem: str) -> None:
         )
 
 
-def slow_tqdm(f: Callable, arg: List[Any]) -> None:
+def slow_tqdm(f: Callable, iter: Iterable, args=None) -> None:
     """
     Wraps a function with a progress bar and adds a delay to prevent rate limiting.
 
@@ -390,8 +390,9 @@ def slow_tqdm(f: Callable, arg: List[Any]) -> None:
         arg (iterable): The iterable to process with the function.
     """
     with logging_redirect_tqdm():
-        for i, problem in tqdm(enumerate(arg)):
-            f(problem)
+        for i, elem in tqdm(enumerate(iter)):
+
+            f(elem, *args)
             if i % 10 == 0:
                 time.sleep(0.3)  # add delay to prevent rate limiting by Grok servers
 
@@ -401,7 +402,7 @@ def main() -> None:
     Main function to orchestrate the scraping and exporting process.
     """
     session: FuturesSession = FuturesSession()
-    ipdb.set_trace()
+
     try:
         session_token: str = get_truthy_config_option(
             "grok_token", MODULE_CONFIG_SECTION
@@ -426,9 +427,9 @@ def main() -> None:
 
     logger.debug(generate_problem_id_map())
 
-    slow_tqdm(export_problem, problems)
+    # slow_tqdm(export_problem, problems)
 
-    sys.exit(0)
+    # sys.exit(0)
 
     logger.info("Getting List of Modules...")
     modules = get_modules(session)
@@ -437,7 +438,7 @@ def main() -> None:
     modules_dir = Path("output") / "modules"
     os.makedirs(modules_dir, exist_ok=True)
 
-    slow_tqdm(export_module, modules)
+    slow_tqdm(export_module, modules, [modules_dir])
 
 
 def generate_problem_id_map() -> Dict[str, str]:
@@ -487,6 +488,30 @@ def export_slide(slides: List[Dict[str, Any]], slide_dir: Path) -> None:
 
         if slide["type"] == 1:
             problem_id = slide["problem_id"]
+            if problem_id in [
+                26311,
+                26399,
+                26410,
+                26396,
+                26382,
+                26393,
+                26397,
+                26398,
+                26401,
+                26394,
+                26400,
+                26395,
+                26309,
+                26307,
+                26306,
+                26308,
+                26304,
+                26302,
+                26303,
+                26305,
+                26310,
+            ]:
+                continue
             exercise_dir = generate_problem_id_map()[str(problem_id)]
             dest = Path(slide_dir) / f"{i}.ref"
             logger.info(f"Exported {slide_title} to {dest}")
@@ -557,24 +582,43 @@ def export_module(module: str, modules_dir: Path) -> None:
         submodule_dir = module_dir / submodule["title"]
         submodule_dir.mkdir(parents=True, exist_ok=True)
         # move all the files in the module dir to the submodule dir
+        slug = data["slug"]
+        if (
+            "exam" in slug
+            or "mst" in slug
+            or "project" in slug
+            or "unimelb-comp10001-2024-s2-p0-practice" in slug
+        ):
+            continue
 
         export_slide(slides, submodule_dir)
 
-    # (module_dir / f"{module}.json").write_text(json.dumps(data, indent=4))
-    # title = data["title"]
-    # slug = data["slug"]
-    # logging.debug(f"Obtained Slug and Title: {slug}, {title}")
-    # if "unimelb-comp10002-2022-s2" not in slug:
-    #     logging.warning("Skipping module, incorrect slug: " + slug)
-    #     return
+    (module_dir / f"{module}.json").write_text(json.dumps(data, indent=4))
+    title = data["title"]
+    slug = data["slug"]
+    logging.debug(f"Obtained Slug and Title: {slug}, {title}")
+    if "unimelb-comp10001-2024-s2" not in slug:
+        logging.warning("Skipping module, incorrect slug: " + slug)
+        return
 
+    if (
+        "exam" in slug
+        or "mst" in slug
+        or "project" in slug
+        or "unimelb-comp10001-2024-s2-p0-practice" in slug
+    ):
+        return
+
+    # import ipdb
+
+    # ipdb.set_trace()
     # if title.startswith("Ex"):
-    #         title = title.split(":")[0]
+    #     title = title.split(":")[0]
     # else:
     #     logging.warning("Skipping module, incorrect title: " + title)
     #     return
 
-    # sub_dir = Path("output") / "grok_exercises" / title
+    sub_dir = Path("output") / "grok_exercises" / title
 
 
 main()
