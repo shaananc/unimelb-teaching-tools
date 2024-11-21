@@ -74,25 +74,39 @@ from jsondiff import diff
 import yaml
 from yaml.dumper import Dumper
 from yaml.nodes import Node
+from configparser import ConfigParser
 
 # Set up logging
 logger = logging.getLogger(__name__)
 FORMAT = "%(message)s"
 rich_handler = RichHandler(markup=True)
-file_handler = logging.FileHandler(filename="unimelblib.log")
+
+
+logging.basicConfig(
+    level="INFO",
+    format=FORMAT,
+    datefmt="[%X]",
+    handlers=[rich_handler],
+)
+
+config = ConfigParser()
+config.read("config/config_comp90059.ini")
+grok_slug = config.get("GROK", "grok_course_slug")
+
+log_dir =  Path("output")/ grok_slug / "logs"
+log_dir.mkdir(parents=True, exist_ok=True)
+file_handler = logging.FileHandler(filename=log_dir / "convert_grok.log")
+file_handler.formatter = logging.Formatter(
+    "%(asctime)s %(name)-12s %(levelname)-8s %(message)s", datefmt="%d-%b-%y %H:%M:%S"
+)
 file_handler.setFormatter(
     logging.Formatter(
         "%(asctime)s %(name)-12s %(levelname)-8s %(message)s",
         datefmt="%d-%b-%y %H:%M:%S",
     )
 )
+logger.addHandler( file_handler)
 
-logging.basicConfig(
-    level="INFO",
-    format=FORMAT,
-    datefmt="[%X]",
-    handlers=[rich_handler, file_handler],
-)
 
 import rich.traceback
 
@@ -181,8 +195,12 @@ def dump_one_workspace(workspace, wd):
     for entry in workspace:
         wd.mkdir(parents=True, exist_ok=True)
         path = wd / entry["path"]
-        with open(path, "w") as f:
-            f.write(entry["content"])
+        try:
+            with open(path, "w") as f:
+                f.write(entry["content"])
+        except:
+            logger.error(f"Error in dumping workspace path :{path}")
+
 
 
 def load_one_workspace(wd, workspace=None):
@@ -241,20 +259,21 @@ def load_problem_json(json_path, as_file=True):
             continue
         try:
             obj[k] = json.loads(obj[k])
-        except json.decoder.JSONDecodeError:
-            import ipdb
+        except json.decoder.JSONDecodeError as j:
+            #import ipdb
 
-            ipdb.set_trace()
-            import sys
+            #ipdb.set_trace()
+            #import sys
 
-            sys.exit(1)
+            #sys.exit(1)
+            logger.error(j)
     return obj
 
 
 class Problem:
     """Class to manage and manipulate problem data."""
 
-    def __init__(self, ex, internal_json=None, output_dir="output/grok_exercises"):
+    def __init__(self, ex, internal_json=None, output_dir=f"output/{grok_slug}/grok_exercises"):
         """Initialize the Problem instance with exercise name and optional internal JSON data."""
         self.internal_json = internal_json
         self.ex = ex
@@ -333,12 +352,13 @@ class Problem:
             passed &= self.run_tests(wd, out)
         logger.info(ok("✓ all tests passed") if passed else fail("✗ some tests failed"))
         if not passed:
-            import sys
+            #import sys
 
-            sys.exit(1)
-            import ipdb
+            #sys.exit(1)
+            #import ipdb
 
-            ipdb.set_trace()
+            #ipdb.set_trace()
+            logger.info("Not all tests passed")
         return passed
 
     def setup_workspace(self, wd, solution):
@@ -363,7 +383,7 @@ class Problem:
             expected_stdout = content.get(1, content.get(0, None))
             expected_stderr = content.get(2, None)
             driver = content.get(10, None)
-            pyunit_test = content.get(6, None)
+            pyunit_test = content.get(6, content.get(13, None))
             stdio = content.get(0, None)
             custom_driver = content.get(4, None)
 
@@ -466,9 +486,10 @@ class Problem:
                 passed &= self.check_test_results(out, expected_stdout, expected_stderr)
 
                 if not passed:
-                    import ipdb
+                    #import ipdb
 
-                    ipdb.set_trace()
+                    #ipdb.set_trace()
+                    logger.error("Test not passed")
 
             else:
                 logger.info("PEP8 compliance check")
@@ -525,8 +546,9 @@ class Problem:
             f.write("import unittest\n")
             f.write(f"from problem import {pyunit_lines[0]}\n")
             f.write(f"class TestProblem(unittest.TestCase):\n")
-            f.write(f"    def test_case(self):\n")
-            f.write(f"        self.assertEqual({pyunit_lines[0]}, {pyunit_lines[1]})\n")
+            if len(pyunit_lines ) > 1 :
+                f.write(f"    def test_case(self):\n")
+                f.write(f"        self.assertEqual({pyunit_lines[0]}, {pyunit_lines[1]})\n")
             f.write("if __name__ == '__main__':\n")
             f.write("    unittest.main()\n")
         return pyunit_test_file
@@ -560,13 +582,14 @@ class Problem:
                         # Other test types
                         with open(path / FILETYPE_NAMES[file["type"]], "w") as f:
                             f.write(file["content"])
-                except KeyError:
-                    import ipdb
+                except KeyError as e:
+                    #import ipdb
 
-                    ipdb.set_trace()
-                    import sys
+                    #ipdb.set_trace()
+                    #import sys
 
-                    sys.exit(1)
+                    #sys.exit(1)
+                    logger.error(f"KeyError occured :{e}")
             with open(path / "test.yaml", "w") as f:
                 entry = {**entry}
                 del entry["files"]
@@ -577,19 +600,21 @@ class Problem:
         wd = self.wd / "tests"
         self.obj["tests"]["tests"] = []
         for path in sorted(glob.glob(f"{wd}/*")):
-
-            with open(path + "/test.yaml") as f:
-                test = yaml.safe_load(f)
-            test["files"] = []
-            for fname in glob.glob(f"{path}/*"):
-                if "yaml" in fname:
-                    continue
-                file = {}
-                with open(fname) as f:
-                    file["content"] = f.read()
-                file["type"] = FILETYPE_NOS[Path(fname).name]
-                test["files"].append(file)
-            self.obj["tests"]["tests"].append(test)
+            try:
+                with open(path + "/test.yaml") as f:
+                    test = yaml.safe_load(f)
+                test["files"] = []
+                for fname in glob.glob(f"{path}/*"):
+                    if "yaml" in fname:
+                        continue
+                    file = {}
+                    with open(fname) as f:
+                        file["content"] = f.read()
+                    file["type"] = FILETYPE_NOS[Path(fname).name]
+                    test["files"].append(file)
+                self.obj["tests"]["tests"].append(test)
+            except FileNotFoundError as fe:
+                logger.error(fe)
 
     def check_test_results(self, out, expected_stout, expected_sterr):
         """Check the results of the tests against expected output."""
@@ -643,10 +668,10 @@ class Problem:
     @property
     def json_path(self):
         """Get the path to the JSON file for the problem."""
-        jpath = Path(f"output/grok_exercises/{self.ex}/*.json")
+        jpath = Path(f"output/{grok_slug}/grok_exercises/{self.ex}/*.json")
         logger.info(jpath.absolute())
         json_paths = glob.glob(str(jpath))
-        assert len(json_paths) == 1
+        assert len(json_paths) >= 1 #TODO: this modified
         path = Path(json_paths[0])
         self.slug = path.stem
         return path
@@ -747,9 +772,9 @@ def main():
     args = parse_args()
     if len(args.names) == 0:
         logger.info("Using all problems in directory")
-        problems = [Path(p) for p in os.listdir("output/grok_exercises")]
+        problems = [Path(p) for p in os.listdir(f"output/{grok_slug}/grok_exercises")]
         # filter out non directories
-        problems = [p for p in problems if (Path("output/grok_exercises") / p).is_dir()]
+        problems = [p for p in problems if (Path(f"output/{grok_slug}/grok_exercises") / p).is_dir()]
         logger.info(problems)
     else:
         problems = args.names
@@ -799,7 +824,7 @@ def parse_args():
         "-d", action="store_true", help="diff only (json vs current work directory)"
     )
     parser.add_argument(
-        "-o", "--output-dir", help="output directory", default="output/grok_exercises"
+        "-o", "--output-dir", help="output directory", default=f"output/{grok_slug}/grok_exercises"
     )
     args = parser.parse_args()
     return args

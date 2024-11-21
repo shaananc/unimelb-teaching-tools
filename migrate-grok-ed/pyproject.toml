@@ -6,7 +6,7 @@ authors = ["Shaanan Cohney <shaananc@gmail.com>"]
 readme = "README.md"
 
 [tool.poetry.dependencies]
-python = "^3.12"
+python = "^3.10"
 cachier = "^3.1.2"
 selenium = "^4.26.0"
 requests = "^2.32.3"
