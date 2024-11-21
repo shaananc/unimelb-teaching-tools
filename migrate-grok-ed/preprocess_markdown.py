@@ -8,6 +8,13 @@ from unidecode import unidecode
 from itertools import chain
 from tqdm import tqdm
 from rich import print  # Use rich for all printing
+from configparser import ConfigParser
+
+config = ConfigParser()
+config.read("config/config_comp90059.ini")
+
+grok_slug = config.get("GROK", "grok_course_slug")
+lesson_type = config.get("ED", "lesson_type")
 
 
 def replace_entities(match):
@@ -20,8 +27,14 @@ def replace_inline_code(text):
     """
     Replace <code data-lang='py3'>...</code> with Markdown backticks.
     """
-    pattern = r"<code data-lang='py3'>(.*?)</code>"
-    return re.sub(pattern, r"`\1`", text)
+    pattern: str = ""
+    match lesson_type.lower():
+        case "python":
+            pattern = r'<code data-lang="py3">(.*?)</code>'
+        case "mysql":
+            pattern = r'<code data-lang="psql">(.*?)</code>'
+    return re.sub(pattern, r"`\1`", text, flags=re.DOTALL | re.IGNORECASE)
+
 
 
 def process_file(f: Path):
@@ -90,18 +103,19 @@ def process_file(f: Path):
 
 def process_exercises():
     # Glob all markdown files in output/grok_exercises
-    origin = Path("output/grok_exercises/")
+    origin = Path(f"output/{grok_slug}/grok_exercises/")
     files = chain(origin.rglob("*.md"), origin.rglob("solution_notes.md"))
     for f in tqdm(files):
         process_file(f)
 
 
 def process_modules():
-    origin = Path("output/modules/")
+    origin = Path(f"output/{grok_slug}/modules/")
     files = chain(origin.rglob("**/*.md"))
     for f in tqdm(files):
         # Convert the markdown to HTML
         text = f.read_text()
+        text = replace_inline_code(text)
         html_content = markdown.markdown(text, extensions=["fenced_code"])
         f.with_suffix(".html").write_text(html_content)
 
@@ -128,8 +142,8 @@ def unescape_file(f: Path):
 
 
 def unescape_all():
-    origin = Path("output/grok_exercises/")
-    modules = Path("output/modules/")
+    origin = Path(f"output/{grok_slug}/grok_exercises/")
+    modules = Path(f"output/{grok_slug}/modules/")
     files = chain(origin.glob("**/content.xml"), modules.rglob("**/*.xml"))
     for f in tqdm(files):
         unescape_file(f)
@@ -144,3 +158,4 @@ def main():
 if __name__ == "__main__":
     main()
     unescape_all()
+

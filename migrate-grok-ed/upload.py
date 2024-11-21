@@ -53,13 +53,14 @@ from retrying import retry
 from rich.logging import RichHandler
 import logging
 import ipdb
+import re
 from configparser import ConfigParser
 
 
 log = logging.getLogger("rich")
 
 config = ConfigParser()
-config.read("config.ini")
+config.read("config/config_comp90059.ini")
 
 FORMAT = "%(message)s"
 log_level = config.get("GLOBAL", "log_level", fallback="DEBUG")
@@ -75,7 +76,21 @@ ALLOW_RSYNC = True
 
 
 session = requests.Session()
+grok_slug = config.get("GROK", "grok_course_slug")
+log_dir =  Path("output")/ grok_slug / "logs"
+log_dir.mkdir(parents=True, exist_ok=True)
+file_handler = logging.FileHandler(filename=log_dir/"upload.log")
+file_handler.formatter = logging.Formatter(
+    "%(asctime)s %(name)-12s %(levelname)-8s %(message)s", datefmt="%d-%b-%y %H:%M:%S"
+)
+log.addHandler( file_handler)
 
+def replace_inline_code(text):
+    """
+    Replace <code data-lang='py3'>...</code> with Markdown backticks.
+    """
+    pattern = r"<code data-lang='py3'>(.*?)</code>"
+    return re.sub(pattern, r"`\1`", text, flags=re.DOTALL | re.IGNORECASE)
 
 class edAPI:
 
@@ -1160,7 +1175,7 @@ def create_slides_and_challenges(
         if ref_path.exists():
             # create challenge
             ref = ref_path.read_text()
-            challenge_path = Path("output/grok_exercises") / ref
+            challenge_path = Path(f"output/{grok_slug}/grok_exercises") / ref
             if not challenge_path.exists():
                 log.error(f"Challenge Path {challenge_path} does not exist")
                 sys.exit(1)
@@ -1169,7 +1184,7 @@ def create_slides_and_challenges(
         elif xml_path.exists():
             # create slide
             metadata = json.loads(xml_path.with_suffix(".json").read_text())
-            slide = get_new_or_old_slide(session, lesson, metadata["title"], "document")
+            slide = get_new_or_old_slide(session, lesson, replace_inline_code(metadata["title"]), "document")
             slide.content = xml_path.read_text()
             slide.save()
 
@@ -1200,16 +1215,18 @@ def create_lesson(
                 still_not_seen = False
 
     if still_not_seen == True:
-        lesson.title = lesson_folder.name
+        lesson_name_details = lesson_folder.name.split("_")
         lesson.create()
-        lesson.title = lesson_folder.name
+        lesson.index = lesson_name_details[0]
+        lesson.title = replace_inline_code("_".join(lesson_name_details[1:]))
         lesson.type = config.get("ED", "lesson_type", fallback="python")
+        lesson.icon = config.get("ED", "lesson_type", fallback="General")
         lesson.module_id = module.id
         lesson.save()
 
     # create slides and challenges
     success = create_slides_and_challenges(lesson_folder, session, lesson)
-    return True
+    return success
 
 
 def create_module(
@@ -1230,7 +1247,8 @@ def create_module(
     module_json_file = module_json_file[0]
     module_json = json.loads(module_json_file.read_text())
 
-    module.name = module_json["title"]
+    module.name = replace_inline_code(module_json["title"])
+
     if (
         "exam" in module.name.lower()
         or "project" in module.name.lower()
@@ -1262,7 +1280,7 @@ def create_module(
             log.warning(
                 "Short circuiting for testing. Remove the break statement to run all lessons"
             )
-            break
+            continue
 
     return True
 
@@ -1284,7 +1302,7 @@ def create_all_modules(session: edAPI):
             session.lesson(lesson.id).delete()
 
     # for every folder in output/grok_exercises
-    for module_folder in Path("output/modules").iterdir():
+    for module_folder in Path(f"output/{grok_slug}/modules").iterdir():
         if not module_folder.is_dir:
             continue
 
@@ -1295,13 +1313,13 @@ def create_all_modules(session: edAPI):
             log.info(
                 "Short circuiting for testing. Remove the break statement to run all modules"
             )
-            break  # short circuit it for testing
+            continue  # short circuit it for testing
 
 
 def main():
 
     session = edAPI().new(
-        f"https://edstem.org/api", Path("api-token").read_text(), class_id="10611"
+        f"https://edstem.org/api", config.get("ED","ed_token"), class_id=config.get("ED", "ed_course_id")
     )
 
     create_all_modules(session)

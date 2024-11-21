@@ -24,6 +24,7 @@ import json
 import shutil
 import pathlib
 from pathlib import Path
+from configparser import ConfigParser
 
 import os
 
@@ -44,6 +45,16 @@ logger = logging.getLogger(__name__)
 
 DRY_RUN = False
 DRY_RUN_STR = "[DRY RUN] " if DRY_RUN else ""
+config = ConfigParser()
+config.read("config/config_comp90059.ini")
+grok_slug = config.get("GROK", "grok_course_slug")
+log_dir =  Path("output")/ grok_slug / "logs"
+log_dir.mkdir(parents=True, exist_ok=True)
+file_handler = logging.FileHandler(filename=log_dir / "arrange_files.log")
+file_handler.formatter = logging.Formatter(
+    "%(asctime)s %(name)-12s %(levelname)-8s %(message)s", datefmt="%d-%b-%y %H:%M:%S"
+)
+logger.addHandler( file_handler)
 
 
 def main():
@@ -53,7 +64,7 @@ def main():
     # get the directory the executing file is in
     cwd = Path(os.path.dirname(os.path.realpath(__file__)))
     # get the path to the output/grok_exercises directory
-    output_base = cwd / "output" / "grok_exercises"
+    output_base = cwd / "output" / grok_slug / "grok_exercises"
     moved_files = 0
     # iterate through all the json files in output/grok_exercises and move them to a subdirectory based on the json key "title"
     logger.info(output_base)
@@ -70,7 +81,7 @@ def main():
         title = data["title"]
         slug = data["slug"]
         logging.debug(f"Obtained Slug and Title: {slug}, {title}")
-        if "unimelb-comp10001-2024-s2" not in slug:
+        if grok_slug not in slug:
             open("remainders.txt", "a").write(file_path + "\n")
             continue
 

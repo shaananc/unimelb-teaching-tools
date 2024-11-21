@@ -1,5 +1,6 @@
 from json import JSONDecodeError
 from typing import Iterable, List, Dict, Callable, Any
+import re
 
 """
 This script scrapes problems and modules from the Grok Learning platform and exports them to a local directory.
@@ -79,28 +80,24 @@ import requests.cookies
 import rich
 import configparser
 
+## Read config
 
 logger = logging.getLogger(__name__)
 FORMAT = "%(message)s"
 rich_handler = RichHandler(markup=True)
-file_handler = logging.FileHandler(filename="unimelblib.log")
-file_handler.formatter = logging.Formatter(
-    "%(asctime)s %(name)-12s %(levelname)-8s %(message)s", datefmt="%d-%b-%y %H:%M:%S"
-)
 
 logging.basicConfig(
     level="INFO",
     format=FORMAT,
     datefmt="[%X]",
-    handlers=[rich_handler, file_handler],
+    handlers=[rich_handler],
 )
-
 
 rich.traceback.install()
 
-logger.info("Reading Configuration File")
+print("Reading Configuration File")
 config = configparser.ConfigParser()
-CONFIG_FILENAME = "config.ini"
+CONFIG_FILENAME = "config/config_busa90539.ini"
 CONFIG_GLOBAL_KEY = "GLOBAL"
 LOCAL_CONFIG_PATH = Path(Path(os.path.realpath(__file__)).parent / CONFIG_FILENAME)
 result = []
@@ -111,18 +108,11 @@ elif Path(CONFIG_FILENAME).exists():
     result = config.read(CONFIG_FILENAME)
 else:
     raise FileNotFoundError(
-        "Could not find the configuration file 'config.ini' in either the current working directory or the script directory"
+        f"Could not find the configuration file '{CONFIG_FILENAME}' in either the current working directory or the script directory"
     )
 
 assert result
-logger.info("Configuration File Successfully Read.")
-
-
-if "log_level" in config[CONFIG_GLOBAL_KEY]:
-    level = config[CONFIG_GLOBAL_KEY]["log_level"]
-    logger.info(f"Setting log level to {level}")
-    logger.setLevel(level)
-
+print("Configuration File Successfully Read.")
 
 global_section = config[CONFIG_GLOBAL_KEY]
 cache_expiry = int(global_section.get("cache_expiry", fallback="0"))
@@ -148,27 +138,30 @@ def get_truthy_config_option(option: str, section: str = CONFIG_GLOBAL_KEY) -> s
 MODULE_CONFIG_SECTION = "GROK"
 course_slug = get_truthy_config_option("grok_course_slug", MODULE_CONFIG_SECTION)
 # problem_suffix = get_truthy_config_option("grok_problem_suffix", MODULE_CONFIG_SECTION)
+excluded_problems = config.get(MODULE_CONFIG_SECTION, option="excluded_problems", fallback="").split(",")
+excluded_modules = config.get(MODULE_CONFIG_SECTION, option="excluded_modules", fallback="").split(",")
+excluded_submodules = config.get(MODULE_CONFIG_SECTION, option="excluded_submodules", fallback="").split(",")
 
 grok_url = "https://groklearning.com"
 base_search_url = (
     f"{grok_url}/admin/author-problems/?q_authoring_state=3&q_language=&q={course_slug}"
 )
-
-
 full_search_url = f"{base_search_url}q={course_slug}"
 
-FORMAT = "%(message)s"
-logging.basicConfig(format=FORMAT, datefmt="[%X]", handlers=[RichHandler()])
+if "log_level" in config[CONFIG_GLOBAL_KEY]:
+    level = get_truthy_config_option("log_level", "GLOBAL", )
+    logger.info(f"Setting log level to {level}")
+    logger.setLevel(level)
+
+log_dir = Path("output") / course_slug / "logs"
+log_dir.mkdir(parents=True, exist_ok=True)
+file_handler = logging.FileHandler(filename=log_dir / "scrape_grok.log")
+file_handler.formatter = logging.Formatter(
+    "%(asctime)s %(name)-12s %(levelname)-8s %(message)s", datefmt="%d-%b-%y %H:%M:%S"
+)
+logger.addHandler(file_handler)
 
 DRY_RUN = False
-
-logger = logging.getLogger(__name__)
-log_level = get_truthy_config_option(
-    "log_level",
-    "GLOBAL",
-)
-if log_level:
-    logger.setLevel(log_level)
 
 
 def attempt_auth(f: Callable) -> Callable:
@@ -341,39 +334,41 @@ def export_problem(problem: str) -> None:
         except JSONDecodeError:
             logger.error(f"Error decoding JSON for {problem}")
             return
+
+        #TODO: there was a dangling else here i removed it.
+
+        # make a directory for the course
+        course_dir = Path("output") / course_slug / "grok_exercises"
+        course_dir.mkdir(parents=True, exist_ok=True)
+
+        # write the json to a file
+        dest = Path(course_dir) / f"{problem}.json"
+        logger.info(f"Exported {problem} to {dest}")
+        if not DRY_RUN:
+            dest.write_text(response.text)
+
+        obj = response.json()
+        title = obj["title"]
+        if title.startswith("Ex"):
+            title = title.split(":")[0]
         else:
-            # make a directory for the course
-            course_dir = Path("output") / "grok_exercises"
-            course_dir.mkdir(parents=True, exist_ok=True)
+            return
+        problem_obj: convert_grok.Problem = convert_grok.Problem(
+            title.replace("Exercise ", "Ex"),
+            obj,
+            course_dir / title.replace("Exercise ", "Ex"),
+        )
+        problem_obj.load()
 
-            # write the json to a file
-            dest = Path(course_dir) / f"{problem}.json"
-            logger.info(f"Exported {problem} to {dest}")
-            if not DRY_RUN:
-                dest.write_text(response.text)
+        content_file = problem_obj.wd / "content.md"
+        if content_file.exists():
+            preprocess_markdown.process_file(content_file)
+            preprocess_markdown.unescape_file(content_file.with_suffix(".xml"))
 
-            obj = response.json()
-            title = obj["title"]
-            if title.startswith("Ex"):
-                title = title.split(":")[0]
-            else:
-                return
-            problem_obj: convert_grok.Problem = convert_grok.Problem(
-                title.replace("Exercise ", "Ex"),
-                obj,
-                course_dir / title.replace("Exercise ", "Ex"),
-            )
-            problem_obj.load()
-
-            content_file = problem_obj.wd / "content.md"
-            if content_file.exists():
-                preprocess_markdown.process_file(content_file)
-                preprocess_markdown.unescape_file(content_file.with_suffix(".xml"))
-
-            content_file = problem_obj.wd / "solution_notes.md"
-            if content_file.exists():
-                preprocess_markdown.process_file(content_file)
-                preprocess_markdown.unescape_file(content_file.with_suffix(".xml"))
+        content_file = problem_obj.wd / "solution_notes.md"
+        if content_file.exists():
+            preprocess_markdown.process_file(content_file)
+            preprocess_markdown.unescape_file(content_file.with_suffix(".xml"))
 
     else:
         logger.error(
@@ -391,7 +386,7 @@ def slow_tqdm(f: Callable, iter: Iterable, args=None) -> None:
     """
     with logging_redirect_tqdm():
         for i, elem in tqdm(enumerate(iter)):
-
+            args = args or ()
             f(elem, *args)
             if i % 10 == 0:
                 time.sleep(0.3)  # add delay to prevent rate limiting by Grok servers
@@ -403,6 +398,7 @@ def main() -> None:
     """
     session: FuturesSession = FuturesSession()
 
+    # Get the session token and validate
     try:
         session_token: str = get_truthy_config_option(
             "grok_token", MODULE_CONFIG_SECTION
@@ -421,24 +417,24 @@ def main() -> None:
     else:
         get_jar().set("grok_session", session_token, domain=".groklearning.com")
 
+    # get list of problems and export
     logger.info("Getting List of Problems...")
     problems = get_problems(session)
     logger.debug(problems)
-
+    slow_tqdm(export_problem, problems)
     logger.debug(generate_problem_id_map())
-
-    # slow_tqdm(export_problem, problems)
 
     # sys.exit(0)
 
+    # get list of modules and export
     logger.info("Getting List of Modules...")
     modules = get_modules(session)
     logger.debug(modules)
-
-    modules_dir = Path("output") / "modules"
+    modules_dir = Path("output") / course_slug / "modules"
     os.makedirs(modules_dir, exist_ok=True)
-
     slow_tqdm(export_module, modules, [modules_dir])
+
+    # TODO: what about getting slides outside module and exporting
 
 
 def generate_problem_id_map() -> Dict[str, str]:
@@ -451,7 +447,7 @@ def generate_problem_id_map() -> Dict[str, str]:
     if generate_problem_id_map.problem_id_map:
         return generate_problem_id_map.problem_id_map
 
-    for jf in Path("output/grok_exercises").rglob("*.json"):
+    for jf in Path(f"output/{course_slug}/grok_exercises").rglob("*.json"):
         # load the json file
         data = {}
         with open(jf, "r") as f:
@@ -485,32 +481,14 @@ def export_slide(slides: List[Dict[str, Any]], slide_dir: Path) -> None:
         logger.info(f"Exported {slide_title} to {dest}")
         if not DRY_RUN:
             dest.write_text(json.dumps(slide, indent=4))
-
+        if "problem_id" in slide and slide["problem_id"] in excluded_problems:
+            continue
         if slide["type"] == 1:
             problem_id = slide["problem_id"]
-            if problem_id in [
-                26311,
-                26399,
-                26410,
-                26396,
-                26382,
-                26393,
-                26397,
-                26398,
-                26401,
-                26394,
-                26400,
-                26395,
-                26309,
-                26307,
-                26306,
-                26308,
-                26304,
-                26302,
-                26303,
-                26305,
-                26310,
-            ]:
+            if problem_id in excluded_problems:
+                continue
+            if not problem_id in generate_problem_id_map():
+                logger.warning(f"{problem_id} not in {excluded_problems} but not found in grok_exercises")
                 continue
             exercise_dir = generate_problem_id_map()[str(problem_id)]
             dest = Path(slide_dir) / f"{i}.ref"
@@ -524,9 +502,57 @@ def export_slide(slides: List[Dict[str, Any]], slide_dir: Path) -> None:
             logger.info(f"Exported {slide_title} to {dest}")
             if not DRY_RUN:
                 dest.write_text(slide_content)
+            download_resources(slide_content)
 
         else:
             raise ValueError(f"Unknown slide type {slide['type']}")
+
+
+@attempt_auth
+def download_resources(slide_content: str):
+    """
+    Downloads resources - images and additional scripts from a slide's content and saves in resources folder
+
+    Args:
+        slide_content: content to be parsed for grok learning cdn hyperlinks for resources
+    """
+    pattern = r'https://groklearning-cdn\.com/[^\s")]+'
+    matches = re.findall(pattern, slide_content)
+    session = requests.Session()
+    session.headers.update({
+        "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/114.0.0.0 Safari/537.36"
+    })
+    for match in matches:
+        logger.info(f"Downloading resources : {match}")
+        response: requests.Response = session.get(match)
+
+        response.raise_for_status()
+        resources_dir = Path("output") / course_slug / "resources"
+        resources_dir.mkdir(parents=True, exist_ok=True)
+
+        content_type = response.headers.get('Content-Type', '').lower()
+        filename = "_".join(match.split("/")[-2:])
+
+        if "image" in content_type:
+            # Handle image files
+            file_path = os.path.join(resources_dir, filename)
+            with open(file_path, "wb") as f:
+                for chunk in response.iter_content(chunk_size=8192):
+                    f.write(chunk)
+            print(f"Image saved to {file_path}")
+        elif "text" in content_type or "json" in content_type:
+            # Handle text-based files
+            file_path = os.path.join(resources_dir, filename)
+            with open(file_path, "w", encoding="utf-8") as f:
+                f.write(response.text)
+            print(f"Text saved to {file_path}")
+        else:
+            # Handle other binary files
+            file_path = os.path.join(resources_dir, filename)
+            with open(file_path, "wb") as f:
+                for chunk in response.iter_content(chunk_size=8192):
+                    f.write(chunk)
+            print(f"Binary file saved to {file_path}")
 
 
 def export_module(module: str, modules_dir: Path) -> None:
@@ -568,7 +594,7 @@ def export_module(module: str, modules_dir: Path) -> None:
     module_title = data["title"]
     module_slug = data["slug"]
     logger.info(f"Processing Module {str(module)}: {module_title}, {module_slug}")
-    if "2024-s2" not in module_slug:
+    if "2024" not in module_slug:  # Removed s2 from the condition as some subjects are only available in s1
         logger.info("skipping module, incorrect slug")
         return
 
@@ -576,19 +602,16 @@ def export_module(module: str, modules_dir: Path) -> None:
         logger.info("skipping module, assignment")
         return
 
+    idx: int = 0
     for submodule in data["content"]:
         slides = submodule["slides"]
-
-        submodule_dir = module_dir / submodule["title"]
+        submodule_title: str = str(idx) + "_" + submodule["title"]
+        submodule_dir = module_dir / submodule_title
         submodule_dir.mkdir(parents=True, exist_ok=True)
+        idx += 1
         # move all the files in the module dir to the submodule dir
         slug = data["slug"]
-        if (
-            "exam" in slug
-            or "mst" in slug
-            or "project" in slug
-            or "unimelb-comp10001-2024-s2-p0-practice" in slug
-        ):
+        if slug in excluded_submodules:
             continue
 
         export_slide(slides, submodule_dir)
@@ -597,16 +620,11 @@ def export_module(module: str, modules_dir: Path) -> None:
     title = data["title"]
     slug = data["slug"]
     logging.debug(f"Obtained Slug and Title: {slug}, {title}")
-    if "unimelb-comp10001-2024-s2" not in slug:
+    if course_slug not in slug:
         logging.warning("Skipping module, incorrect slug: " + slug)
         return
 
-    if (
-        "exam" in slug
-        or "mst" in slug
-        or "project" in slug
-        or "unimelb-comp10001-2024-s2-p0-practice" in slug
-    ):
+    if slug in excluded_modules:
         return
 
     # import ipdb
@@ -618,7 +636,7 @@ def export_module(module: str, modules_dir: Path) -> None:
     #     logging.warning("Skipping module, incorrect title: " + title)
     #     return
 
-    sub_dir = Path("output") / "grok_exercises" / title
+    sub_dir = Path("output") / course_slug / "grok_exercises" / title
 
 
 main()
