@@ -19,6 +19,8 @@ Functions:
     create_slides_and_challenges(slide_folder: Path, session: edAPI, lesson: edAPI.Lesson): Creates slides and challenges from a given folder.
     create_lesson(lesson_folder: Path, session: edAPI, module: edAPI.Module, existing_lessons): Creates a lesson from a given folder.
     create_module(module_folder: Path, session: edAPI, existing_modules, existing_lessons): Creates a module from a given folder.
+    check_and_resolve_collision(session: edAPI, lesson: edAPI.Lesson, slide_title: str): Prepends "Explainer:" to the name of any existing text
+        slides in the lesson that match the target slide_title, as this interferes with the creation of lessons.
     create_all_modules(session: edAPI): Creates all modules by iterating through the output/grok_exercises directory.
     delete_all_modules(session: edAPI): Deletes all modules by iterating through the lessons in Ed. Used for cleaning in a testing environment.
     main(): Main function to initiate the session and create all modules.
