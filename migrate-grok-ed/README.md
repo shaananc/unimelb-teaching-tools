@@ -10,7 +10,7 @@ To convert a Grok project to Ed, you need to do the following:
 
 ## Run
 
-- Host the amber-util using a http server (probably use `npx http-server./` from the amber-util folder path)
+- Host the amber-util using a http server (probably use `npx http-server ./` from the amber-util folder path)
 - Run `poetry run python scrape_grok.py` to scrape the data from Grok, 
 - Run `poetry run python arrange_files.py` parse it, unpack it.
 - Run `poetry run python preprocess_markdown.py` to convert the Markdown to Amber (Ed's format for representing the content of a slide or 'challenge')

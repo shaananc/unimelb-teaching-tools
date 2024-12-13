@@ -19,7 +19,10 @@ Functions:
     create_slides_and_challenges(slide_folder: Path, session: edAPI, lesson: edAPI.Lesson): Creates slides and challenges from a given folder.
     create_lesson(lesson_folder: Path, session: edAPI, module: edAPI.Module, existing_lessons): Creates a lesson from a given folder.
     create_module(module_folder: Path, session: edAPI, existing_modules, existing_lessons): Creates a module from a given folder.
+    check_and_resolve_collision(session: edAPI, lesson: edAPI.Lesson, slide_title: str): Prepends "Explainer:" to the name of any existing text
+        slides in the lesson that match the target slide_title, as this interferes with the creation of lessons.
     create_all_modules(session: edAPI): Creates all modules by iterating through the output/grok_exercises directory.
+    delete_all_modules(session: edAPI): Deletes all modules by iterating through the lessons in Ed. Used for cleaning in a testing environment.
     main(): Main function to initiate the session and create all modules.
 """
 import requests
@@ -618,6 +621,41 @@ class edAPI:
 
             return self
 
+        def upload_challenge_files(self, req_body):
+            """
+            Upload given files to respective places:
+            Structure:
+            {
+                "title": String,
+                "content": String,
+                "scaffold": Dictionary,
+                "solution": Dictionary,
+                "test_files": Dictionary,
+                "scaffold_binary": Dictionary,
+                "solution_binary": Dictionary,
+                "test_files_binary": Dictionary,
+            }
+            Where the title and content are as normal in slides,
+            and each Dictionary is of the form:
+            {
+                String: String
+            }
+            Where the first string is the target filename 
+            and the second string is the data, either text data
+            or, for keys in the main structure that include the "_binary"
+            suffix, base64 encoded data.
+            """
+            # https://edstem.org/api/lessons/{lesson_id}/slides/challenge
+            lesson_id = self.id
+            target_url = f"lessons/{lesson_id}/slides/challenge"
+            keyview = {
+                "test_files": list(req_body["test_files"].keys()),
+                "solution": list(req_body["solution"].keys()),
+                "scaffold": list(req_body["scaffold"].keys()),
+            }
+            log.info(f"Sending files {json.dumps(keyview, indent=4)} to {target_url}")
+            self.api_request("POST", url_suffix=target_url, json_data=req_body, include_sid=False)
+
         def get_all(self):
             response = self.api_request(
                 "GET", url_suffix=f"courses/{self.class_id}/lessons", include_sid=False
@@ -881,24 +919,84 @@ def rsync(src: str, dest: str, args):
     )
 
 
-def create_challenge(folder: Path, session: edAPI, lesson: edAPI.Lesson):
+def create_challenge(folder: Path, session: edAPI, lesson: edAPI.Lesson, problemPath: Path):
     # set content to the contents of content.amber
-    content = (folder / "content.xml").read_text()
+    content = (problemPath.with_suffix('.xml')).read_text()
     # set solution_text to the contents of solution_notes.amber
-    solution_text = (folder / "solution_notes.xml").read_text()
+    if (folder / "solution_notes.xml").exists():
+        solution_text = (folder / "solution_notes.xml").read_text()
+    else:
+        solution_text = None
 
     # read in problem.yaml
     # problem = None
-    problem_yaml_path = folder / "problem.yaml"
-    grok_problem = GrokProblem.from_yaml(str(problem_yaml_path))
+    # problem_yaml_path = folder / "problem.yaml"
+    with open(problemPath) as f:
+        grok_problem = json.load(f)
 
-    slide = get_new_or_old_slide(session, lesson, grok_problem.title, "code")  # type: ignore
+    grok_ed_map = (
+        ("workspace", "scaffold"),
+        ("solutions", "solution"),
+        #("tests", "check"),
+        #("tests", "testbase"),
+        ("tests", "test_files"),
+    )
+
+    req_body = {
+        "title": grok_problem['title'],
+        "description_md": content,
+        "scaffold": {},
+        "solution": {},
+        "test_files": {},
+    }
+
+    makefile = folder / "workspace" / "Makefile"
+    for grok_folder, ed_folder in grok_ed_map:
+        # log.info(f"Uploading {grok_folder} to {ed_folder}")
+        for wfile in (folder / grok_folder).glob("**/*"):
+            if not wfile.name.endswith(".yaml"):
+                if wfile.is_dir():
+                    log.info(
+                        #f"Skipping {wfile} as part of module {mychallenge.id} and lesson {lesson.id}"
+                        f"Skipping {wfile} as part of module"
+                    )
+                    continue
+                log.info(
+                    #f"Uploading {wfile} as part of module {mychallenge.id} and lesson {lesson.id}"
+                    f"Uploading {wfile} as part of module"
+                )
+                upload_file_path = str(wfile.relative_to(folder / grok_folder))
+                keyname = ed_folder
+                try:
+                    file_content = wfile.read_text()
+                except:
+                    keyname = ed_folder + "_binary"
+                    if keyname not in req_body.keys():
+                        req_body[keyname] = {}
+                    bfile = wfile.read_bytes()
+                    import base64
+                    file_content = base64.b64encode(wfile.read_bytes()).decode()
+                req_body[keyname][upload_file_path] = file_content
+        if makefile.exists():
+            req_body[ed_folder]["Makefile"] = makefile.read_text()
+        elif lesson.type == "c":
+            log.warning(f"Makefile does not exist at {makefile}")
+
+    # Ensure upload POST goes smoothly
+    check_and_resolve_collision(session, lesson, req_body["title"])
+
+    # Upload files.
+    lesson.upload_challenge_files(req_body)
+
+    slide = get_new_or_old_slide(session, lesson, grok_problem["title"], "code")  # type: ignore
     slide.content = content
     slide.save()
 
-    if grok_problem.language == 20:
+    log.info(f"Challenge (Path: {folder}, Lesson {lesson})")
+
+    if grok_problem["language"] == 20:
         log.warning(
-            f"Skipping slide {grok_problem.title} because it is a multiple choice quiz"
+            f"Skipping slide {grok_problem["title"]} because it is a multiple choice quiz"
         )
         return
 
@@ -941,35 +1039,10 @@ def create_challenge(folder: Path, session: edAPI, lesson: edAPI.Lesson):
         None,
     )
 
-    grok_ed_map = (
-        ("workspace", "scaffold"),
-        ("solutions", "solution"),
-        ("tests", "check"),
-        ("tests", "testbase"),
-    )
-    makefile = folder / "workspace" / "Makefile"
-    for grok_folder, ed_folder in grok_ed_map:
-        # log.info(f"Uploading {grok_folder} to {ed_folder}")
-        for wfile in (folder / grok_folder).glob("*"):
-            if not wfile.name.endswith(".yaml"):
-                url = f"challenge.{mychallenge.id}.{ed_folder}@git.edstem.org:"
-                if not DRY_RUN and ALLOW_RSYNC:
-                    log.info(
-                        f"Uploading {wfile} to {url} as part of module {mychallenge.id} and lesson {lesson.id}"
-                    )
-                    rsync(str(wfile.absolute()), url, ["-r", "--exclude", "*.yaml"])
-                    if makefile.exists():
-                        rsync(str(makefile.absolute()), url, [])
-                    elif lesson.type == "c":
-                        log.warning(f"Makefile does not exist at {makefile}")
-                else:
-                    log.warning(
-                        "Not uploading files because either DRY_RUN is set or ALLOW_RSYNC is off"
-                    )
-
     # set the content to the contents of content.amber
     mychallenge.content = content
-    mychallenge.explanation = solution_text
+    if solution_text:
+        mychallenge.explanation = solution_text
     if lesson.type == "c":
         mychallenge.settings.build_command = "make all"  # type: ignore
         mychallenge.settings.run_command = "make run"  # type: ignore
@@ -1069,9 +1142,11 @@ def create_challenge(folder: Path, session: edAPI, lesson: edAPI.Lesson):
     mychallenge.type = "code"
 
     testcases: List[challenge.Testcase] = []
-    for f in (folder / "tests").rglob("*.yaml"):
-        grok_test = GrokTest.from_yaml(str(f))
+
+    for f in (folder / "tests").iterdir():
         log.info(f)
+        grok_test = json.loads(grok_problem['tests'])
+        grok_test = grok_test['tests'][int(f.stem)]
         relative_dir = f.relative_to(folder / "tests").parent
         testcase = challenge.Testcase(
             None,
@@ -1088,19 +1163,22 @@ def create_challenge(folder: Path, session: edAPI, lesson: edAPI.Lesson):
             None,
             None,
         )
-
-        testcase.name = grok_test.label
+        
+        testcase.name = grok_test["label"]
 
         # if it's c
         if lesson.type == "c":
             testcase.run_command = "./program"
         elif lesson.type == "python":
-            testcase.run_command = "python3 program.py"
+            if (folder / "tests" / relative_dir / "test.py").exists():
+                testcase.run_command = f"python3 {str(folder / "tests" / relative_dir / "test.py")}"
+            else:
+                testcase.run_command = "python3 program.py"
 
-        if (folder / "tests" / relative_dir / "stdin").exists():
-            testcase.stdin_path = str(relative_dir / "stdin")
+        if (folder / "tests" / relative_dir / "stdin.txt").exists():
+            testcase.stdin_path = str(relative_dir / "stdin.txt")
         else:
-            log.warning(f"stdin does not exist for {grok_test.label}")
+            log.warning(f"stdin does not exist for {grok_test["label"]}")
             testcase.stdin_path = str("")
 
         check = challenge.Check(
@@ -1120,12 +1198,13 @@ def create_challenge(folder: Path, session: edAPI, lesson: edAPI.Lesson):
             None,
         )
         # if stdout exists use it, if stdio exists use that instead
-        if (folder / "tests" / relative_dir / "stdout").exists():
-            check.expect_path = str(relative_dir / "stdout")
+        if (folder / "tests" / relative_dir / "stdout.txt").exists():
+            check.expect_path = str(relative_dir / "stdout.txt")
         elif (folder / "tests" / relative_dir / "stdio").exists():
+            # Not handled in markdown step
             check.expect_path = str(relative_dir / "stdio")
         else:
-            log.warn(f"Neither stdout or stdio exist for {grok_test.label}")
+            log.warn(f"Neither stdout or stdio exist for {grok_test["label"]}")
             check.expect_path = str("")
             # raise Exception(f"Neither stdout or stdio exist for {grok_test.label}")
 
@@ -1138,6 +1217,23 @@ def create_challenge(folder: Path, session: edAPI, lesson: edAPI.Lesson):
     mychallenge.save()
     slide.save()
 
+
+def check_and_resolve_collision(
+    session: edAPI, lesson: edAPI.Lesson, slide_title: str
+):
+    slide: edAPI.Slide = session.slide()
+    new_slide = True
+    lesson = session.lesson(lesson.id).get()  # type: ignore
+    if lesson.slides:
+        for t in lesson.slides:
+            if t.title == slide_title:
+                log.warning(f"Slide {slide_title} already exists, renaming")
+                slide = session.slide(t.id).get()  # type: ignore
+                new_slide = False
+                if slide.type == "document":
+                    slide.title = "Explainer:" + slide.title
+                slide.save()
+                
 
 def get_new_or_old_slide(
     session: edAPI, lesson: edAPI.Lesson, slide_title: str, slide_type: str
@@ -1168,10 +1264,12 @@ def create_slides_and_challenges(
 
     # TODO: check if the slide already exists
     log.info(f"Creating slides and challenges for {slide_folder}")
+
     i = 0
     while True:
         ref_path = Path(slide_folder / f"{i}.ref")
         xml_path = Path(slide_folder / f"{i}.xml")
+        json_path = Path(slide_folder / f"{i}.json")
         if ref_path.exists():
             # create challenge
             ref = ref_path.read_text()
@@ -1187,6 +1285,24 @@ def create_slides_and_challenges(
             slide = get_new_or_old_slide(session, lesson, replace_inline_code(metadata["title"]), "document")
             slide.content = xml_path.read_text()
             slide.save()
+        elif json_path.exists():
+            log.warning(f"JSON exists but not xml or ref in {i}")
+            metadata = json.loads(json_path.read_text())
+
+            # Get reference
+            if "problem_id" in metadata.keys():
+                ref_id = metadata["problem_id"]
+                ref_folder = Path(f"output/{grok_slug}/grok_exercises")
+                ref_file_options = list(ref_folder.glob(f"./*/{ref_id}.json"))
+                if not len(ref_file_options) == 1:
+                    log.error("SKIP: Expected one file matching excercise {} but found {}. Files are {}. Slide folder is {}".format(ref_id, len(ref_file_options), ref_file_options, slide_folder))
+                    # print("glob is", f"./*/{ref_id}.json", "ref folder is", ref_folder, "ref_id is", ref_id)
+                    i += 1
+                    continue
+                selected_ref_item: Path = ref_file_options[0]
+                # Create challenge for reference.
+                single_challenge_path = selected_ref_item.parent / str(ref_id)
+                create_challenge(single_challenge_path, session, lesson, selected_ref_item)
 
         else:
             break
@@ -1267,6 +1383,7 @@ def create_module(
     for lesson_folder in module_folder.iterdir():
         if not lesson_folder.is_dir():
             continue
+
         log.info(f"Creating lesson {lesson_folder.name}")
 
         # if "Chapter 10: Dynamic Structures (FOA only)" in module.name:
@@ -1316,12 +1433,23 @@ def create_all_modules(session: edAPI):
             continue  # short circuit it for testing
 
 
+def delete_all_modules(session: edAPI):
+    lessons, modules = session.lesson().get_all()
+    existing_modules = defaultdict(list)
+    for lesson in lessons:
+        log.info(f"Deleting {lesson.title}")
+        session.lesson(lesson.id).delete()
+
+
 def main():
 
     session = edAPI().new(
         f"https://edstem.org/api", config.get("ED","ed_token"), class_id=config.get("ED", "ed_course_id")
     )
 
+    # For cleanup after testing
+    # delete_all_modules(session)
+    # Create all lessons.
     create_all_modules(session)
     # lesson: edAPI.lesson = session.lesson(31193).get()
     # create_challenge(Path("output/grok_exercises/Ex10.x1"), session, lesson)
