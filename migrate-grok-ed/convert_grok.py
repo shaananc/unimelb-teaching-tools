@@ -90,7 +90,7 @@ logging.basicConfig(
 )
 
 config = ConfigParser()
-config.read("config/config_comp90059.ini")
+config.read("config/config_comp10001.ini")
 grok_slug = config.get("GROK", "grok_course_slug")
 
 log_dir =  Path("output")/ grok_slug / "logs"
@@ -212,6 +212,8 @@ def load_one_workspace(wd, workspace=None):
 
     for path in glob.glob(f"{wd}/*"):
         path = Path(path)
+        if path.is_dir():
+            continue
         fname = path.name
         entry = old_workspace.get(
             fname,

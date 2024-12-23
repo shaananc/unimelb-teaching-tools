@@ -11,30 +11,14 @@ from tqdm import tqdm
 from rich import print  # Use rich for all printing
 from configparser import ConfigParser
 
+import utils
+
 config = ConfigParser()
-config.read("config/config_comp90059.ini")
+config.read("config/config_comp10001.ini")
 
 grok_slug = config.get("GROK", "grok_course_slug")
 lesson_type = config.get("ED", "lesson_type")
 
-
-def replace_entities(match):
-    unescaped = html.unescape(match.group(0))
-    unescaped = unescaped.strip("\n").lstrip("\n")
-    return unescaped
-
-
-def replace_inline_code(text):
-    """
-    Replace <code data-lang='py3'>...</code> with Markdown backticks.
-    """
-    pattern: str = ""
-    match lesson_type.lower():
-        case "python":
-            pattern = r'<code data-lang="py3">(.*?)</code>'
-        case "mysql":
-            pattern = r'<code data-lang="psql">(.*?)</code>'
-    return re.sub(pattern, r"`\1`", text, flags=re.DOTALL | re.IGNORECASE)
 
 
 
@@ -44,12 +28,19 @@ def process_file(f: Path):
 
     # Replace code blocks with language directives
     lines = []
+    terminal_output : bool = False
     for line in text.splitlines():
+        if re.match(r'```eg:last;\s*terminal;.*', line):
+            terminal_output = True
+            continue # skip the terminal output blocks
+        if terminal_output and re.match(r'```\n', line):
+            terminal_output = False
+            continue
         if re.match("```.+:.*$", line):
-            line = re.sub(r"```.*lang:(.+?)(;*)$", r"```\1", line)
+            line = re.sub(r"```.*lang:(.+?)(;*)$", r"`", line)
             line = line.split(";")[0]
         if not (line.find("```c") > -1 or line.find("```bash") > -1):
-            line = re.sub(r"```.*$", r"```", line)
+            line = re.sub(r"```(.*?)```", r"`\1`", line)
         lines.append(line)
 
     text = "\n".join(lines)
@@ -63,12 +54,12 @@ def process_file(f: Path):
         "",
     )
     text = text.replace("Grok", "Ed").replace("grok", "Ed")
-    text = re.sub(r"\s*```", "\n```", text, flags=re.MULTILINE)
-    text = text.replace("```norun", "```")
+    text = re.sub(r"\s*```", "\n`", text, flags=re.MULTILINE)
+    text = text.replace("```norun", "`")
     text = text.replace("$$", "$").replace("@@@", "")
 
     # Replace inline code
-    text = replace_inline_code(text)
+    text = utils.replace_inline_code(text, lesson_type, replace_html_table=True)
 
     # Check if a .bak file already exists
     backup_path = f.with_suffix(f"{f.suffix}.bak")
@@ -97,7 +88,7 @@ def process_file(f: Path):
     # Clean up Amber snippets
     amber_text = famber.read_text()
     amber_text = re.sub(
-        r"<snippet>.*?</snippet>", replace_entities, amber_text, flags=re.DOTALL
+        r"<snippet>.*?</snippet>", utils.replace_entities, amber_text, flags=re.DOTALL
     )
     famber.write_text(amber_text)
 
@@ -114,7 +105,7 @@ def process_jsons(f: Path):
         content_file = f.with_suffix(".md")
         with open(content_file, "w") as file:
             file.write(json_data["content"])
-        json_content = replace_inline_code(json_data["content"])
+        json_content = utils.replace_inline_code(json_data["content"], lesson_type, replace_html_table=True)
         html_content = markdown.markdown(json_content, extensions=["fenced_code"])
         content_file.with_suffix(".html").write_text(html_content)
 
@@ -129,7 +120,7 @@ def process_jsons(f: Path):
     # See if there are solution notes.
     if "notes" in json_data.keys() and len(json_data["notes"]) > 0:
         output_path = sub_dir / "solution_notes.html"
-        json_content = replace_inline_code(json_data["notes"])
+        json_content = utils.replace_inline_code(json_data["notes"], lesson_type, replace_html_table=True)
         html_content = markdown.markdown(json_content, extensions=["fenced_code"])
         output_path.write_text(html_content)
 
@@ -141,7 +132,7 @@ def process_jsons(f: Path):
     
     if "teacher_notes" in json_data.keys() and len(json_data["teacher_notes"]) > 0:
         output_path = sub_dir / "teacher_notes.html"
-        json_content = replace_inline_code(json_data["teacher_notes"])
+        json_content = utils.replace_inline_code(json_data["teacher_notes"], lesson_type, replace_html_table=True)
         html_content = markdown.markdown(json_content, extensions=["fenced_code"])
         output_path.write_text(html_content)
 
@@ -251,7 +242,7 @@ def process_modules():
     for f in tqdm(files):
         # Convert the markdown to HTML
         text = f.read_text()
-        text = replace_inline_code(text)
+        text = utils.replace_inline_code(text, lesson_type, replace_html_table=True)
         html_content = markdown.markdown(text, extensions=["fenced_code"])
         f.with_suffix(".html").write_text(html_content)
 
@@ -260,6 +251,7 @@ def process_modules():
         fabs = f.absolute().with_suffix(".html")
         famber = f.absolute().with_suffix(".xml")
         subprocess.run(["node", cpath, str(fabs), str(famber)])
+
 
 
 def unescape_file(f: Path):

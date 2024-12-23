@@ -88,7 +88,8 @@ class XmlRenderer {
         this.current = this.current.parentElement;
     }
     renderBlockquote(b) {
-        const el = this.xmlDoc.createElement('blockquote');
+        const el = this.xmlDoc.createElement('callout');
+        el.setAttribute('type','info')
         this.current.appendChild(el);
         this.current = el;
         for (const child of b.children) {
@@ -116,7 +117,7 @@ class XmlRenderer {
         } else {
             el.setAttribute('language', 'bash');
         }
-        el.setAttribute('runnable', 'false');
+        el.setAttribute('runnable', 'true');
         el.setAttribute('line-numbers', 'true');
         // End Shaanan Code
         this.current.appendChild(el);

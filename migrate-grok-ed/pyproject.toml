@@ -24,6 +24,7 @@ yaml2pyclass = "^0.1.1"
 ipdb = "^0.13.13"
 bs4 = "^0.0.2"
 pycodestyle = "^2.12.1"
+markdownify = "*"
 
 
 [build-system]

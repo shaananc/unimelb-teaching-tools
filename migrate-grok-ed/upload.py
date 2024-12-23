@@ -1,4 +1,7 @@
 import shutil
+from time import sleep
+
+import utils
 
 """
 This script is used to interact with the EdStem API to create and manage lessons, slides, and challenges.
@@ -63,7 +66,7 @@ from configparser import ConfigParser
 log = logging.getLogger("rich")
 
 config = ConfigParser()
-config.read("config/config_comp90059.ini")
+config.read("config/config_comp10001.ini")
 
 FORMAT = "%(message)s"
 log_level = config.get("GLOBAL", "log_level", fallback="DEBUG")
@@ -80,6 +83,7 @@ ALLOW_RSYNC = True
 
 session = requests.Session()
 grok_slug = config.get("GROK", "grok_course_slug")
+lesson_type = config.get("ED", "lesson_type")
 log_dir =  Path("output")/ grok_slug / "logs"
 log_dir.mkdir(parents=True, exist_ok=True)
 file_handler = logging.FileHandler(filename=log_dir/"upload.log")
@@ -87,13 +91,9 @@ file_handler.formatter = logging.Formatter(
     "%(asctime)s %(name)-12s %(levelname)-8s %(message)s", datefmt="%d-%b-%y %H:%M:%S"
 )
 log.addHandler( file_handler)
+sleep_time :int = 2
 
-def replace_inline_code(text):
-    """
-    Replace <code data-lang='py3'>...</code> with Markdown backticks.
-    """
-    pattern = r"<code data-lang='py3'>(.*?)</code>"
-    return re.sub(pattern, r"`\1`", text, flags=re.DOTALL | re.IGNORECASE)
+
 
 class edAPI:
 
@@ -208,11 +208,11 @@ class edAPI:
                         return response.json()
                     try:
                         # log the response in json and the status code combined with the status code first
-                        log.error(f"HTTP {response.status_code}: {response.json()}")
+                        log.error(f"HTTP {response.status_code}: {response.json()} for {full_url}")
 
                     except requests.exceptions.JSONDecodeError:
                         pass
-                    raise e
+                    #raise e
 
                 try:
                     return response.json()
@@ -989,7 +989,7 @@ def create_challenge(folder: Path, session: edAPI, lesson: edAPI.Lesson, problem
     lesson.upload_challenge_files(req_body)
 
     slide = get_new_or_old_slide(session, lesson, grok_problem["title"], "code")  # type: ignore
-    slide.content = content
+    slide.content = utils.replace_inline_code( content, lesson_type, False)
     slide.save()
 
     log.info(f"Challenge (Path: {folder}, Lesson {lesson})")
@@ -1244,14 +1244,15 @@ def get_new_or_old_slide(
     if lesson.slides:
         for t in lesson.slides:
             if t.title == slide_title:
-                log.warning(f"Slide {slide_title} already exists")
+                #log.warning(f"Slide {slide_title} already exists. modifying slide name")
+                #slide_title = slide_title + "_1"
                 slide = session.slide(t.id).get()  # type: ignore
                 new_slide = False
                 break
     slide.type = slide_type
     slide.lesson_id = lesson.id
     if new_slide:
-        log.info(f"Creating new slide {slide_title}")
+        log.info(f"Creating new slide {slide_title} in {sleep_time} seconds")
         slide.create()
     slide.title = slide_title
     slide.save()
@@ -1279,12 +1280,14 @@ def create_slides_and_challenges(
                 sys.exit(1)
 
             create_challenge(challenge_path, session, lesson)
+            sleep(sleep_time)
         elif xml_path.exists():
             # create slide
             metadata = json.loads(xml_path.with_suffix(".json").read_text())
-            slide = get_new_or_old_slide(session, lesson, replace_inline_code(metadata["title"]), "document")
-            slide.content = xml_path.read_text()
+            slide = get_new_or_old_slide(session, lesson, utils.replace_inline_code(metadata["title"],lesson_type, False), "document")
+            slide.content =  utils.replace_inline_code( xml_path.read_text(), lesson_type, True)
             slide.save()
+            sleep(sleep_time)
         elif json_path.exists():
             log.warning(f"JSON exists but not xml or ref in {i}")
             metadata = json.loads(json_path.read_text())
@@ -1303,6 +1306,7 @@ def create_slides_and_challenges(
                 # Create challenge for reference.
                 single_challenge_path = selected_ref_item.parent / str(ref_id)
                 create_challenge(single_challenge_path, session, lesson, selected_ref_item)
+                sleep(sleep_time)
 
         else:
             break
@@ -1334,7 +1338,7 @@ def create_lesson(
         lesson_name_details = lesson_folder.name.split("_")
         lesson.create()
         lesson.index = lesson_name_details[0]
-        lesson.title = replace_inline_code("_".join(lesson_name_details[1:]))
+        lesson.title = utils.replace_inline_code("_".join(lesson_name_details[1:]), lesson_type, False)
         lesson.type = config.get("ED", "lesson_type", fallback="python")
         lesson.icon = config.get("ED", "lesson_type", fallback="General")
         lesson.module_id = module.id
@@ -1363,7 +1367,7 @@ def create_module(
     module_json_file = module_json_file[0]
     module_json = json.loads(module_json_file.read_text())
 
-    module.name = replace_inline_code(module_json["title"])
+    module.name = utils.replace_inline_code(module_json["title"],lesson_type, False)
 
     if (
         "exam" in module.name.lower()

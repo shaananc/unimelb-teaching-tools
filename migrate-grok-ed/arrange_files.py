@@ -46,7 +46,7 @@ logger = logging.getLogger(__name__)
 DRY_RUN = False
 DRY_RUN_STR = "[DRY RUN] " if DRY_RUN else ""
 config = ConfigParser()
-config.read("config/config_comp90059.ini")
+config.read("config/config_comp10001.ini")
 grok_slug = config.get("GROK", "grok_course_slug")
 log_dir =  Path("output")/ grok_slug / "logs"
 log_dir.mkdir(parents=True, exist_ok=True)
