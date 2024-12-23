@@ -19,49 +19,45 @@ def replace_terminal_outputs_without_lang(text):
     replaced_text = str(re.sub(pattern, "", text, flags=re.DOTALL))
     pattern: str = r'```eg:last;(.*?)```'
     replaced_text = str(re.sub(pattern, r"`\1`", replaced_text, flags=re.DOTALL))
-    new_pattern: str = r'```terminal;eg:none;(.*?)```'
-    replaced_text = re.sub(new_pattern, r"`\1`", replaced_text, flags=re.DOTALL)
-    new_pattern: str = r'```terminal;(.*?)```'
-    replaced_text = re.sub(new_pattern, "", replaced_text, flags=re.DOTALL)
-    norun_pattern: str = r'```norun;(.*?)```'
-    replaced_text = str(re.sub(norun_pattern, r"`\1`", replaced_text, flags=re.DOTALL))
-    exportable_pattern: str = r'```exportable;terminal;eg:none;(.*?)```'
-    replaced_text = re.sub(exportable_pattern, r"`\1`", replaced_text, flags=re.DOTALL)
-    exportable_pattern: str = r'```exportable;(.*?)```'
-    replaced_text = re.sub(exportable_pattern, r"`\1`", replaced_text, flags=re.DOTALL)
-    readonly_pattern: str = r'```readonly;(.*?)```'
-    replaced_text = re.sub(readonly_pattern, r"`\1`", replaced_text, flags=re.DOTALL)
-    readonly_pattern: str = r'`readonly;(.*?)`'
-    replaced_text = re.sub(readonly_pattern, r"`\1`", replaced_text, flags=re.DOTALL)
-    textpath_pattern: str = r'`lang:txt;path:(.*);(.*?)`'
-    replaced_text = re.sub(textpath_pattern, r"`\1`", replaced_text, flags=re.DOTALL)
-    output_pattern :str = r'```eg:none;\s*terminal;(.*?)```'
-    return re.sub(output_pattern, r"`\1`", replaced_text, flags=re.DOTALL)
+    pattern: str = r'```terminal;eg:none;(.*?)```'
+    replaced_text = re.sub(pattern, r"`\1`", replaced_text, flags=re.DOTALL)
+    pattern: str = r'```terminal;(.*?)```'
+    replaced_text = re.sub(pattern, "", replaced_text, flags=re.DOTALL)
+    pattern: str = r'```norun;(.*?)```'
+    replaced_text = str(re.sub(pattern, r"`\1`", replaced_text, flags=re.DOTALL))
+    pattern: str = r'```exportable;terminal;eg:none;(.*?)```'
+    replaced_text = re.sub(pattern, r"`\1`", replaced_text, flags=re.DOTALL)
+    pattern: str = r'```exportable;(.*?)```'
+    replaced_text = re.sub(pattern, r"`\1`", replaced_text, flags=re.DOTALL)
+    pattern: str = r'```readonly;(.*?)```'
+    replaced_text = re.sub(pattern, r"`\1`", replaced_text, flags=re.DOTALL)
+    pattern: str = r'`readonly;(.*?)`'
+    replaced_text = re.sub(pattern, r"`\1`", replaced_text, flags=re.DOTALL)
+    pattern: str = r'`lang:txt;path:.*;(.*?)`'
+    replaced_text = re.sub(pattern, r"`\1`", replaced_text, flags=re.DOTALL)
+    pattern :str = r'```eg:none;\s*terminal;(.*?)```'
+    return re.sub(pattern, r"`\1`", replaced_text, flags=re.DOTALL)
 
 
 def replace_terminal_outputs_with_lang(text, lang):
     pattern: str = fr'```eg:last;lang:{lang};terminal;.*?```'
     replaced_text =  str(re.sub(pattern, "", text, flags=re.DOTALL))
-    output_pattern: str = fr'```eg:none;lang:{lang};terminal;(.*?)```'
-    replaced_text  = str( re.sub(output_pattern, r"`\1`", replaced_text, flags=re.DOTALL))
-    output_pattern: str = fr'```eg:(.*);lang:{lang};(.*?)```'
-    replaced_text = str(re.sub(output_pattern, r"`\1`", replaced_text, flags=re.DOTALL))
-    if lang == 'py3':
-        output_pattern: str = fr'```eg:(.*);python;(.*?)```'
-        replaced_text = str(re.sub(output_pattern, r"`\1`", replaced_text, flags=re.DOTALL))
-    pattern:str = rf'```lang:{lang};terminal;eg:none;(.*)?```'
-    return str(re.sub(pattern, r"`\1`", replaced_text, flags=re.DOTALL | re.IGNORECASE))
+    pattern: str = fr'```eg:none;lang:{lang};terminal;(.*?)```'
+    replaced_text  = str( re.sub(pattern, r"`\1`", replaced_text, flags=re.DOTALL))
+    pattern:str = rf'```lang:{lang};terminal;eg:none;(.*?)```'
+    return re.sub(pattern, r"`\1`", replaced_text, flags=re.DOTALL )
 
 
 
 
 def replace_inline_code(text, lesson_type, replace_output= True, replace_html_table: bool = True):
     """
-    Replace <code data-lang='py3'>...</code> with Markdown backticks.
+    Replace code and outputs with Markdown backticks.
     """
     lang  = ""
     pattern3 = r'language=\"bash\"' # converts the language from generic bash to actual language, this was not handled in DocumentFormat.js
     replacement3 = ""
+
     match lesson_type.lower():
         case "python":
             replacement3 = f'language=\"py\"'
@@ -73,6 +69,7 @@ def replace_inline_code(text, lesson_type, replace_output= True, replace_html_ta
     pattern2: str = rf'`lang:{lang};(.*?)`' # converts code blocks into `code markdown text`
     pattern4: str = fr'```eg:[a-zA-Z0-9\-]*;lang:{lang};(.*?)```' # converts code blocks into `runnable code blocks markdown`
     pattern5: str = r'`lang:(out|str|int|err|in);(.*?)`'
+    pattern6: str = fr'```eg:[a-zA-Z0-9\-]*;{lesson_type};(.*?)```'
     text = str(replace_terminal_outputs_without_lang(text)) # replaces the terminal outputs which are unnecessary
     text = str(replace_terminal_outputs_with_lang(text, lang))
     text = str(replace_comments(text))  # replace the comments
@@ -81,6 +78,7 @@ def replace_inline_code(text, lesson_type, replace_output= True, replace_html_ta
     text = str(re.sub(pattern3, replacement3, text))
     text = str(re.sub(pattern4, r"```\1```", text, flags=re.DOTALL | re.IGNORECASE))
     text = str(re.sub(pattern5, r"`\1`", text, flags=re.DOTALL | re.IGNORECASE))
+    text = str(re.sub(pattern6, r"```\1```", text, flags=re.DOTALL))
     if replace_html_table:
         text = convert_html_table(text)
     return text
